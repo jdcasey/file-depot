@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" xmlns:ui="http://java.sun.com/jsf/facelets" xmlns:f="http://java.sun.com/jsf/core" xmlns:h="http://java.sun.com/jsf/html" template="/WEB-INF/templates/default.xhtml">
+  <ui:define name="content">
+    <h1>User Management</h1>
+    <h:form id="reg">
+      <h2>Create User</h2>
+      <table>
+        <tr>
+          <th style="text-align: right;">
+            <h:outputLabel for="username" value="Username:"/>
+          </th>
+          <td>
+            <h:inputText id="username" value="#{newUser.username}"/>
+            <h:message for="username" errorClass="invalid"/>
+          </td>
+        </tr>
+        <tr>
+          <th style="text-align: right;">
+            <h:outputLabel for="firstName" value="First Name:"/>
+          </th>
+          <td>
+            <h:inputText id="firstName" value="#{newUser.firstName}"/>
+            <h:message for="firstName" errorClass="invalid"/>
+          </td>
+        </tr>
+        <tr>
+          <th style="text-align: right;">
+            <h:outputLabel for="lastName" value="Last Name:"/>
+          </th>
+          <td>
+            <h:inputText id="lastName" value="#{newUser.lastName}"/>
+            <h:message for="lastName" errorClass="invalid"/>
+          </td>
+        </tr>
+        <tr>
+          <th style="text-align: right;">
+            <h:outputLabel for="email" value="Email Address:"/>
+          </th>
+          <td>
+            <h:inputText id="email" value="#{newUser.email}"/>
+            <h:message for="email" errorClass="invalid"/>
+          </td>
+        </tr>
+        <tr>
+          <td style="text-align: right;">
+            <h:commandButton id="add" action="#{userAdmin.createUser}" value="Create User"/>
+          </td>
+          <td>
+            <h:outputText value=" Done!" rendered="#{facesContext.postback and empty facesContext.messageList}" style="color: green;"/>
+          </td>
+        </tr>
+      </table>
+    </h:form>
+    <h2>Users</h2>
+    <h:panelGroup rendered="#{empty users}">
+      <em>No registered workspaces.</em>
+    </h:panelGroup>
+    <h:dataTable var="_user" value="#{users}" rendered="#{not empty users}">
+      <h:column><f:facet name="header">ID</f:facet>
+        #{_user.id}
+      </h:column>
+      <h:column><f:facet name="header">Username</f:facet>
+        #{_user.username}
+      </h:column>
+      <h:column><f:facet name="header">First Name</f:facet>
+        #{_user.firstName}
+      </h:column>
+      <h:column><f:facet name="header">Last Name</f:facet>
+        #{_user.lastName}
+      </h:column>
+      <h:column><f:facet name="header">Email Address</f:facet>
+        #{_user.email}
+      </h:column>
+      <!--             <h:column>
+                <f:facet name="header">REST URL</f:facet>
+                <a href="#{request.contextPath}/api/1.0/workspaces/#{_ws.id}">/api/1.0/workspaces/#{_ws.id}</a>
+            </h:column>
+            <f:facet name="footer">
+                REST URL for all workspaces: <a href="#{request.contextPath}/api/1.0/workspaces">/api/1.0/workspaces</a>
+            </f:facet> -->
+    </h:dataTable>
+  </ui:define>
+</ui:composition>

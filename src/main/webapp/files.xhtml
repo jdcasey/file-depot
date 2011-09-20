@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:f="http://java.sun.com/jsf/core" xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:a4j="http://richfaces.org/a4j"
+  xmlns:rich="http://richfaces.org/rich" template="/WEB-INF/templates/default.xhtml">
+  <ui:define name="content">
+    <h1>Upload a File</h1>
+
+    <h:form enctype="multipart/form-data" prependId="false">
+      <h:panelGrid columns="3">
+        <h:outputLabel for="file" value="Input File:"/>
+        <rich:fileUpload id="file" 
+                         maxFilesQuantity="5" 
+                         fileUploadListener="#{fileAdmin.listener}" 
+                         immediateUpload="false" 
+                         autoclear="true" 
+                         listHeight="100" />
+        <h:message for="file" />
+      </h:panelGrid>
+      
+      <h:commandButton value="submit" action="#{fileAdmin.save}" />
+    </h:form>
+    
+    <h2>Files</h2>
+    <h:panelGroup rendered="#{empty files}">
+      <em>No files in this workspace.</em>
+    </h:panelGroup>
+    <h:dataTable id="listing" var="_file" value="#{files}" rendered="#{not empty files}">
+      <h:column><f:facet name="header">Name</f:facet>
+        #{_file.name}
+      </h:column>
+      <h:column><f:facet name="header">Size <em>(bytes)</em></f:facet>
+        #{_file.size}
+      </h:column>
+      <!--             <h:column>
+                <f:facet name="header">REST URL</f:facet>
+                <a href="#{request.contextPath}/api/1.0/workspaces/#{_ws.id}">/api/1.0/workspaces/#{_ws.id}</a>
+            </h:column>
+            <f:facet name="footer">
+                REST URL for all workspaces: <a href="#{request.contextPath}/api/1.0/workspaces">/api/1.0/workspaces</a>
+            </f:facet> -->
+    </h:dataTable>
+  </ui:define>
+</ui:composition>

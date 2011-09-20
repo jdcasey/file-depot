@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" xmlns:ui="http://java.sun.com/jsf/facelets" xmlns:f="http://java.sun.com/jsf/core" xmlns:h="http://java.sun.com/jsf/html" template="/WEB-INF/templates/default.xhtml">
+  <ui:define name="content">
+    <h1>Workspace Management</h1>
+    <h:form id="reg">
+      <h2>Create Workspace</h2>
+      <table>
+        <tr>
+          <th style="text-align: right;">
+            <h:outputLabel for="name" value="Workspace Name:"/>
+          </th>
+          <td colspan="2">
+            <h:inputText id="name" value="#{newWorkspace.name}"/>
+            <h:message for="name" errorClass="invalid"/>
+          </td>
+        </tr>
+        <tr>
+          <th style="text-align: right;">
+            <h:outputLabel for="pathName" value="URL Identifier:"/>
+          </th>
+          <td>
+            <h:inputText id="pathName" value="#{newWorkspace.pathName}"/>
+            <h:message for="pathName" errorClass="invalid"/>
+          </td>
+          <td>
+            <h:commandButton id="generate" action="#{workspaceAdmin.generatePathName}" value="Generate"/>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="font-size: 10pt; text-align: right;">
+            <em>(Appears in the Location Bar of your Browser)</em>
+          </td>
+          <td/>
+        </tr>
+        <tr>
+          <td colspan="2" style="text-align: right;">
+            <h:commandButton id="add" action="#{workspaceAdmin.createWorkspace}" value="Create Workspace"/>
+          </td>
+          <td>
+            <h:outputText value=" Done!" rendered="#{facesContext.postback and empty facesContext.messageList}" style="color: green;"/>
+          </td>
+        </tr>
+      </table>
+    </h:form>
+    <h2>Workspaces</h2>
+    <h:panelGroup rendered="#{empty workspaces}">
+      <em>No registered workspaces.</em>
+    </h:panelGroup>
+    <h:dataTable var="_ws" value="#{workspaces}" rendered="#{not empty workspaces}">
+      <h:column><f:facet name="header">Id</f:facet>
+        #{_ws.id}
+      </h:column>
+      <h:column><f:facet name="header">Name</f:facet>
+        #{_ws.name}
+      </h:column>
+      <h:column><f:facet name="header">URL Identifier</f:facet>
+        #{_ws.pathName}
+      </h:column>
+      <!--             <h:column>
+                <f:facet name="header">REST URL</f:facet>
+                <a href="#{request.contextPath}/api/1.0/workspaces/#{_ws.id}">/api/1.0/workspaces/#{_ws.id}</a>
+            </h:column>
+            <f:facet name="footer">
+                REST URL for all workspaces: <a href="#{request.contextPath}/api/1.0/workspaces">/api/1.0/workspaces</a>
+            </f:facet> -->
+    </h:dataTable>
+  </ui:define>
+</ui:composition>

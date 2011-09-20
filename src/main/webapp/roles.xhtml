@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml" xmlns:ui="http://java.sun.com/jsf/facelets" xmlns:f="http://java.sun.com/jsf/core" xmlns:h="http://java.sun.com/jsf/html" template="/WEB-INF/templates/default.xhtml">
+  <ui:define name="content">
+    <h2>Roles</h2>
+    <h:panelGroup rendered="#{empty roles}">
+      <em>No registered roles.</em>
+    </h:panelGroup>
+    <h:dataTable var="_role" value="#{roles}" rendered="#{not empty roles}">
+      <h:column><f:facet name="header">ID</f:facet>
+        #{_role.id}
+      </h:column>
+      <h:column><f:facet name="header">Name</f:facet>
+        #{_role.name}
+      </h:column>
+    </h:dataTable>
+    <h2>Permissions</h2>
+    <h:panelGroup rendered="#{empty permissions}">
+      <em>No registered permissions.</em>
+    </h:panelGroup>
+    <h:dataTable var="_perm" value="#{permissions}" rendered="#{not empty permissions}">
+      <h:column><f:facet name="header">ID</f:facet>
+        #{_perm.id}
+      </h:column>
+      <h:column><f:facet name="header">Name</f:facet>
+        #{_perm.name}
+      </h:column>
+    </h:dataTable>
+  </ui:define>
+</ui:composition>
