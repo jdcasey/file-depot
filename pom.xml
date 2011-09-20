@@ -19,13 +19,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.commonjava.web</groupId>
-    <artifactId>rest-app-parent</artifactId>
-    <version>1-SNAPSHOT</version>
+    <groupId>org.commonjava.couch</groupId>
+    <artifactId>couch-apps-parent</artifactId>
+    <version>1.0-SNAPSHOT</version>
   </parent>
   
   <artifactId>file-depot</artifactId>
-  <version>0.1-SNAPSHOT</version>
   
   <packaging>war</packaging>
   <name>File Depot</name>
@@ -50,28 +49,32 @@
       <artifactId>activation</artifactId>
     </dependency> -->
     <dependency>
-    	<groupId>org.commonjava.web</groupId>
+    	<groupId>org.commonjava.couch.web</groupId>
     	<artifactId>restful-user-manager</artifactId>
     </dependency>
     <dependency>
-    	<groupId>org.commonjava.web</groupId>
+    	<groupId>org.commonjava.util</groupId>
     	<artifactId>configuration-api</artifactId>
     </dependency>
     <dependency>
-    	<groupId>org.commonjava.web</groupId>
+    	<groupId>org.commonjava.util</groupId>
     	<artifactId>configuration-dotconf</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.commonjava.web</groupId>
+      <groupId>org.commonjava.couch.web</groupId>
       <artifactId>web-common</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.commonjava.auth</groupId>
+      <groupId>org.commonjava.couch</groupId>
       <artifactId>shiro-couch</artifactId>
     </dependency>
     <dependency>
       <groupId>org.commonjava.couch</groupId>
       <artifactId>couch-user-manager</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.commonjava.couch</groupId>
+      <artifactId>couch-app-support</artifactId>
     </dependency>
   </dependencies>
   
