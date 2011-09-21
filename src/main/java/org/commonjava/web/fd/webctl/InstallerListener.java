@@ -5,6 +5,8 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
+import org.commonjava.couch.change.CouchChangeListener;
+import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
@@ -19,10 +21,23 @@ public class InstallerListener
     @Inject
     private WorkspaceDataManager dataManager;
 
+    @Inject
+    private CouchChangeListener changeListener;
+
     @Override
     public void contextInitialized( final ServletContextEvent sce )
     {
         logger.info( "Verfiying that CouchDB + applications + basic data is installed..." );
+
+        try
+        {
+            changeListener.startup();
+        }
+        catch ( CouchDBException e )
+        {
+            throw new RuntimeException( "Failed to start change listener: " + e.getMessage(), e );
+        }
+
         try
         {
             dataManager.install();
@@ -38,7 +53,15 @@ public class InstallerListener
     @Override
     public void contextDestroyed( final ServletContextEvent sce )
     {
-        // NOP
+        try
+        {
+            changeListener.shutdown();
+        }
+        catch ( CouchDBException e )
+        {
+            throw new RuntimeException( "Failed to shutdown change listener: " + e.getMessage(), e );
+        }
+
     }
 
 }
