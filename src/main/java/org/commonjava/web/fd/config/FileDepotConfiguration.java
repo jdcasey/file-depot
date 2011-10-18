@@ -19,9 +19,13 @@ package org.commonjava.web.fd.config;
 
 import java.io.File;
 
+import org.commonjava.couch.conf.CouchDBConfiguration;
+
 public interface FileDepotConfiguration
 {
 
     File getUploadDirectory();
+
+    public abstract CouchDBConfiguration getDatabaseConfig();
 
 }

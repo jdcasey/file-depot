@@ -31,33 +31,27 @@ import javax.inject.Singleton;
 import org.commonjava.auth.couch.conf.DefaultUserManagerConfig;
 import org.commonjava.auth.couch.conf.UserManagerConfiguration;
 import org.commonjava.couch.conf.CouchDBConfiguration;
-import org.commonjava.couch.conf.DefaultCouchDBConfiguration;
 import org.commonjava.web.config.ConfigurationException;
 import org.commonjava.web.config.DefaultConfigurationListener;
 import org.commonjava.web.config.dotconf.DotConfConfigurationReader;
+import org.commonjava.web.fd.inject.FileDepotData;
 
 @Singleton
 public class FileDepotConfigurationFactory
     extends DefaultConfigurationListener
 {
 
-    private static final String CONFIG_PATH = "/etc/file-depot/file-depot.conf";
+    private static final String CONFIG_PATH = "/etc/file-depot/main.conf";
 
     private DefaultFileDepotConfiguration fileDepotConfig;
 
     private DefaultUserManagerConfig userManagerConfig;
 
-    private DefaultCouchDBConfiguration couchConfig;
-
     public FileDepotConfigurationFactory()
         throws ConfigurationException
     {
-        super( DefaultFileDepotConfiguration.class, DefaultUserManagerConfig.class,
-               DefaultCouchDBConfiguration.class );
+        super( DefaultFileDepotConfiguration.class, DefaultUserManagerConfig.class );
     }
-
-    // @Inject
-    // private PostOfficeConfigurationListener postOfficeConfigurationListener;
 
     @PostConstruct
     protected void load()
@@ -94,9 +88,12 @@ public class FileDepotConfigurationFactory
         return userManagerConfig;
     }
 
+    @Produces
+    @FileDepotData
+    @Default
     public CouchDBConfiguration getCouchDBConfiguration()
     {
-        return couchConfig;
+        return fileDepotConfig.getDatabaseConfig();
     }
 
     @Override
@@ -105,7 +102,6 @@ public class FileDepotConfigurationFactory
     {
         fileDepotConfig = getConfiguration( DefaultFileDepotConfiguration.class );
         userManagerConfig = getConfiguration( DefaultUserManagerConfig.class );
-        couchConfig = getConfiguration( DefaultCouchDBConfiguration.class );
     }
 
 }

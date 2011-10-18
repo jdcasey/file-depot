@@ -36,11 +36,12 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.authz.AuthorizationException;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
+import org.apache.shiro.subject.Subject;
 import org.commonjava.auth.couch.model.Permission;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.common.model.Listing;
-import org.commonjava.web.common.ser.DenormalizerPostProcessor;
 import org.commonjava.web.common.ser.JsonSerializer;
 import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
@@ -76,9 +77,7 @@ public class WorkspaceResource
                                                                  Permission.ADMIN ) );
 
         @SuppressWarnings( "unchecked" )
-        Workspace ws =
-            jsonSerializer.fromRequestBody( request, Workspace.class,
-                                            new DenormalizerPostProcessor<Workspace>() );
+        Workspace ws = jsonSerializer.fromRequestBody( request, Workspace.class );
 
         logger.info( "\n\nGot workspace: %s\n\n", ws );
 
@@ -125,15 +124,42 @@ public class WorkspaceResource
     }
 
     @GET
-    @Path( "list" )
+    @Path( "all" )
     @Produces( { MediaType.APPLICATION_JSON } )
-    public Response getWorkspaces()
+    public Response getAllWorkspaces()
         throws WorkspaceDataException
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
                                                                  Permission.ADMIN ) );
 
         Listing<Workspace> listing = new Listing<Workspace>( dataManager.getWorkspaces() );
+        String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
+        {}.getType() );
+
+        return Response.ok( json ).build();
+    }
+
+    @GET
+    @Path( "my" )
+    @Produces( { MediaType.APPLICATION_JSON } )
+    public Response getUserWorkspaces()
+        throws WorkspaceDataException
+    {
+        Subject subject = SecurityUtils.getSubject();
+
+        try
+        {
+            subject.checkPermission( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
+            return getAllWorkspaces();
+        }
+        catch ( AuthorizationException e )
+        {
+            // Used to check whether the user can see all workspaces.
+        }
+
+        Listing<Workspace> listing =
+            new Listing<Workspace>( dataManager.getWorkspacesForUser( subject ) );
+
         String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
         {}.getType() );
 

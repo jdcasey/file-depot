@@ -68,7 +68,7 @@ public class Workspace
         return pathName;
     }
 
-    public void setPathName( final String pathName )
+    void setPathName( final String pathName )
     {
         this.pathName = pathName;
     }
@@ -122,6 +122,27 @@ public class Workspace
     {
         setCouchDocId( namespaceId( NAMESPACE, this.name ) );
         this.pathName = sha512Hex( this.name );
+    }
+
+    public static String adminRole( final String wsName )
+    {
+        return namespaceId( NAMESPACE, wsName, "admin" );
+    }
+
+    public static String userRole( final String wsName )
+    {
+        return namespaceId( NAMESPACE, wsName, "user" );
+    }
+
+    public static String getWorkspaceForRole( final String role )
+    {
+        String[] parts = role.split( ":" );
+        if ( parts.length < 2 || !NAMESPACE.equals( parts[0] ) )
+        {
+            return null;
+        }
+
+        return parts[1];
     }
 
 }

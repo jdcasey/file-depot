@@ -22,21 +22,26 @@ import static org.commonjava.auth.couch.model.Permission.CREATE;
 import static org.commonjava.auth.couch.model.Permission.READ;
 import static org.commonjava.couch.util.IdUtils.namespaceId;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import org.apache.shiro.subject.Subject;
 import org.commonjava.auth.couch.data.UserDataException;
 import org.commonjava.auth.couch.data.UserDataManager;
 import org.commonjava.auth.couch.model.Permission;
+import org.commonjava.auth.couch.model.User;
 import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.model.CouchDocRef;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceAppDescription.View;
+import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
 
 @Singleton
@@ -46,12 +51,14 @@ public class WorkspaceDataManager
     private UserDataManager userMgr;
 
     @Inject
+    @FileDepotData
     private CouchManager couch;
 
     @Inject
     private FileDepotConfiguration config;
 
     @Inject
+    @FileDepotData
     private CouchDBConfiguration couchConfig;
 
     public WorkspaceDataManager()
@@ -113,8 +120,9 @@ public class WorkspaceDataManager
                 final Map<String, Permission> perms =
                     userMgr.createPermissions( Workspace.NAMESPACE, name, ADMIN, CREATE, READ );
 
-                userMgr.createRole( name + "-admin", perms.values() );
-                userMgr.createRole( name + "-user", perms.get( READ ), perms.get( CREATE ) );
+                userMgr.createRole( Workspace.adminRole( name ), perms.values() );
+                userMgr.createRole( Workspace.userRole( name ), perms.get( READ ),
+                                    perms.get( CREATE ) );
             }
             catch ( UserDataException e )
             {
@@ -168,6 +176,44 @@ public class WorkspaceDataManager
         {
             throw new WorkspaceDataException( "Failed to read workspace listing: %s", e,
                                               e.getMessage() );
+        }
+    }
+
+    public List<Workspace> getWorkspacesForUser( final Subject subject )
+        throws WorkspaceDataException
+    {
+        User user;
+        try
+        {
+            user = userMgr.getUser( subject.getPrincipal().toString() );
+        }
+        catch ( UserDataException e )
+        {
+            throw new WorkspaceDataException(
+                                              "Failed to read user data for workspace retrieval: %s. Reason: %s",
+                                              e, subject.getPrincipal(), e.getMessage() );
+        }
+
+        Set<String> roles = user.getRoles();
+        Set<CouchDocRef> workspaceRefs = new HashSet<CouchDocRef>();
+        for ( String role : roles )
+        {
+            String wsId = Workspace.getWorkspaceForRole( role );
+            if ( wsId != null )
+            {
+                workspaceRefs.add( new CouchDocRef( namespaceId( Workspace.NAMESPACE, wsId ) ) );
+            }
+        }
+
+        try
+        {
+            return couch.getDocuments( Workspace.class, workspaceRefs );
+        }
+        catch ( CouchDBException e )
+        {
+            throw new WorkspaceDataException(
+                                              "Failed to retrieve workspaces for user: %s. Reason: %s",
+                                              e, subject.getPrincipal(), e.getMessage() );
         }
     }
 

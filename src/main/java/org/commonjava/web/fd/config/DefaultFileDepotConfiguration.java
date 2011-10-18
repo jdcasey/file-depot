@@ -22,6 +22,8 @@ import java.io.File;
 import javax.enterprise.inject.Alternative;
 import javax.inject.Named;
 
+import org.commonjava.couch.conf.CouchDBConfiguration;
+import org.commonjava.couch.conf.DefaultCouchDBConfiguration;
 import org.commonjava.web.config.annotation.ConfigName;
 import org.commonjava.web.config.annotation.SectionName;
 import org.commonjava.web.config.section.ConfigurationSectionListener;
@@ -30,6 +32,7 @@ import org.commonjava.web.config.section.ConfigurationSectionListener;
 @Named( "standalone" )
 @Alternative
 public class DefaultFileDepotConfiguration
+    extends DefaultCouchDBConfiguration
     implements FileDepotConfiguration
 {
 
@@ -37,6 +40,8 @@ public class DefaultFileDepotConfiguration
         new File( System.getProperty( "java.io.tmpdir", "/tmp" ), "uploads" );
 
     private File uploadDirectory = DEFAULT_UPLOAD_DIR;
+
+    private CouchDBConfiguration dbConfig;
 
     @Override
     public File getUploadDirectory()
@@ -48,6 +53,17 @@ public class DefaultFileDepotConfiguration
     public void setUploadDirectory( final File uploadDir )
     {
         this.uploadDirectory = uploadDir;
+    }
+
+    @Override
+    public synchronized CouchDBConfiguration getDatabaseConfig()
+    {
+        if ( dbConfig == null )
+        {
+            dbConfig = new DefaultCouchDBConfiguration( getDatabaseUrl(), getMaxConnections() );
+        }
+
+        return dbConfig;
     }
 
 }

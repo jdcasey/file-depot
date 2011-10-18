@@ -77,7 +77,7 @@ public class FileResource
                           @Context final HttpServletRequest request )
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.CREATE ) );
+                                                                 workspaceName, Permission.CREATE ) );
 
         InputStream in = null;
         try
@@ -133,7 +133,7 @@ public class FileResource
                             @PathParam( "name" ) final String filename )
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.READ ) );
+                                                                 workspaceName, Permission.CREATE ) );
 
         File f;
         try
@@ -163,46 +163,13 @@ public class FileResource
         }
     }
 
-    public Listing<FileInfo> getFiles( final String workspaceName )
-        throws WorkspaceDataException
-    {
-        final List<FileInfo> result = new ArrayList<FileInfo>();
-        final Workspace ws;
-        try
-        {
-            ws = wsDataManager.getWorkspace( workspaceName );
-        }
-        catch ( WorkspaceDataException e )
-        {
-            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName,
-                          e.getMessage() );
-            throw e;
-        }
-
-        SecurityUtils.getSubject().checkPermission( Permission.name( Workspace.NAMESPACE,
-                                                                     Permission.READ ) );
-
-        final File dir = new File( config.getUploadDirectory(), ws.getPathName() );
-
-        if ( dir.exists() )
-        {
-            for ( final String name : dir.list() )
-            {
-                final File f = new File( dir, name );
-                result.add( new FileInfo( f ) );
-            }
-        }
-
-        return new Listing<FileInfo>( result );
-    }
-
     @GET
     @Path( "list" )
     @Produces( { MediaType.APPLICATION_JSON } )
     public Listing<FileInfo> list( @PathParam( "workspaceName" ) final String workspaceName )
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.READ ) );
+                                                                 workspaceName, Permission.READ ) );
 
         try
         {
@@ -221,7 +188,7 @@ public class FileResource
     public String listText( @PathParam( "workspaceName" ) final String workspaceName )
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.READ ) );
+                                                                 workspaceName, Permission.READ ) );
 
         final StringBuilder sb = new StringBuilder();
         try
@@ -246,13 +213,13 @@ public class FileResource
     }
 
     @GET
-    @Path( "{name}" )
+    @Path( "{name}/info" )
     @Produces( { MediaType.APPLICATION_JSON } )
     public FileInfo getFileInfo( @PathParam( "workspaceName" ) final String workspaceName,
                                  @PathParam( "name" ) final String filename )
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.READ ) );
+                                                                 workspaceName, Permission.READ ) );
 
         try
         {
@@ -266,13 +233,13 @@ public class FileResource
     }
 
     @GET
-    @Path( "{name}" )
+    @Path( "{name}/info" )
     @Produces( MediaType.TEXT_PLAIN )
     public Response getFileInfoText( @PathParam( "workspaceName" ) final String workspaceName,
                                      @PathParam( "name" ) final String filename )
     {
         SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.READ ) );
+                                                                 workspaceName, Permission.READ ) );
 
         String result;
         try
@@ -289,10 +256,81 @@ public class FileResource
         return Response.ok( result, MediaType.TEXT_PLAIN ).build();
     }
 
+    @GET
+    @Path( "{name}" )
+    @Produces( MediaType.APPLICATION_OCTET_STREAM )
+    public Response getFile( @PathParam( "workspaceName" ) final String workspaceName,
+                             @PathParam( "name" ) final String filename )
+    {
+        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
+                                                                 workspaceName, Permission.READ ) );
+
+        File f;
+        try
+        {
+            f = getFilesystemFile( workspaceName, filename );
+        }
+        catch ( WebApplicationException e )
+        {
+            return Response.status( Status.BAD_REQUEST ).build();
+        }
+        catch ( WorkspaceDataException e )
+        {
+            return Response.status( Status.INTERNAL_SERVER_ERROR ).build();
+        }
+
+        if ( f.exists() )
+        {
+            return Response.ok( f ).build();
+            // return Response.ok( f ).header( "Content-Disposition",
+            // "attachment; filename=\"" + filename + "\"" ).build();
+
+            // .header( "Content-Disposition", "inline; filename=\"" + filename + "\"" )
+        }
+        else
+        {
+            return Response.status( Status.NOT_FOUND ).build();
+        }
+    }
+
+    public Listing<FileInfo> getFiles( final String workspaceName )
+        throws WorkspaceDataException
+    {
+        final List<FileInfo> result = new ArrayList<FileInfo>();
+        final Workspace ws;
+        try
+        {
+            ws = wsDataManager.getWorkspace( workspaceName );
+        }
+        catch ( WorkspaceDataException e )
+        {
+            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName,
+                          e.getMessage() );
+            throw e;
+        }
+
+        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
+                                                                 workspaceName, Permission.READ ) );
+
+        final File dir = new File( config.getUploadDirectory(), ws.getPathName() );
+
+        if ( dir.exists() )
+        {
+            for ( final String name : dir.list() )
+            {
+                final File f = new File( dir, name );
+                result.add( new FileInfo( f ) );
+            }
+        }
+
+        return new Listing<FileInfo>( result );
+    }
+
     private FileInfo _getFileInfo( final String workspaceName, final String filename )
         throws WorkspaceDataException
     {
-        SecurityUtils.getSubject().checkPermission( "view:file-info" );
+        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
+                                                                 workspaceName, Permission.READ ) );
 
         File f = getFilesystemFile( workspaceName, filename );
 
@@ -331,43 +369,6 @@ public class FileResource
         }
 
         return f;
-    }
-
-    @GET
-    @Path( "{name}/data" )
-    @Produces( MediaType.APPLICATION_OCTET_STREAM )
-    public Response getFile( @PathParam( "workspaceName" ) final String workspaceName,
-                             @PathParam( "name" ) final String filename )
-    {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.READ ) );
-
-        File f;
-        try
-        {
-            f = getFilesystemFile( workspaceName, filename );
-        }
-        catch ( WebApplicationException e )
-        {
-            return Response.status( Status.BAD_REQUEST ).build();
-        }
-        catch ( WorkspaceDataException e )
-        {
-            return Response.status( Status.INTERNAL_SERVER_ERROR ).build();
-        }
-
-        if ( f.exists() )
-        {
-            return Response.ok( f ).build();
-            // return Response.ok( f ).header( "Content-Disposition",
-            // "attachment; filename=\"" + filename + "\"" ).build();
-
-            // .header( "Content-Disposition", "inline; filename=\"" + filename + "\"" )
-        }
-        else
-        {
-            return Response.status( Status.NOT_FOUND ).build();
-        }
     }
 
 }
