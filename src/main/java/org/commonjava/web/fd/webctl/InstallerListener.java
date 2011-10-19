@@ -5,11 +5,13 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
+import org.commonjava.auth.couch.inject.UserData;
 import org.commonjava.couch.change.CouchChangeListener;
 import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
+import org.commonjava.web.fd.inject.FileDepotData;
 
 @WebListener
 public class InstallerListener
@@ -22,7 +24,12 @@ public class InstallerListener
     private WorkspaceDataManager dataManager;
 
     @Inject
-    private CouchChangeListener changeListener;
+    @UserData
+    private CouchChangeListener userChangeListener;
+
+    @Inject
+    @FileDepotData
+    private CouchChangeListener fdChangeListener;
 
     @Override
     public void contextInitialized( final ServletContextEvent sce )
@@ -31,11 +38,12 @@ public class InstallerListener
 
         try
         {
-            changeListener.startup();
+            userChangeListener.startup();
+            fdChangeListener.startup();
         }
         catch ( CouchDBException e )
         {
-            throw new RuntimeException( "Failed to start change listener: " + e.getMessage(), e );
+            throw new RuntimeException( "Failed to start change listener(s): " + e.getMessage(), e );
         }
 
         try
@@ -55,11 +63,13 @@ public class InstallerListener
     {
         try
         {
-            changeListener.shutdown();
+            userChangeListener.shutdown();
+            fdChangeListener.shutdown();
         }
         catch ( CouchDBException e )
         {
-            throw new RuntimeException( "Failed to shutdown change listener: " + e.getMessage(), e );
+            throw new RuntimeException( "Failed to shutdown change listener(s): " + e.getMessage(),
+                                        e );
         }
 
     }
