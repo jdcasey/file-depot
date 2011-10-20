@@ -39,6 +39,8 @@ import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.model.CouchDocRef;
+import org.commonjava.couch.util.JoinString;
+import org.commonjava.util.logging.Logger;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceAppDescription.View;
 import org.commonjava.web.fd.inject.FileDepotData;
@@ -47,6 +49,8 @@ import org.commonjava.web.fd.model.Workspace;
 @Singleton
 public class WorkspaceDataManager
 {
+    private final Logger logger = new Logger( getClass() );
+
     @Inject
     private UserDataManager userMgr;
 
@@ -204,6 +208,8 @@ public class WorkspaceDataManager
                 workspaceRefs.add( new CouchDocRef( namespaceId( Workspace.NAMESPACE, wsId ) ) );
             }
         }
+
+        logger.debug( "Retrieving workspaces for:\n\t%s", new JoinString( "\n\t", workspaceRefs ) );
 
         try
         {

@@ -24,8 +24,10 @@ import org.commonjava.couch.conf.CouchDBConfiguration;
 public interface FileDepotConfiguration
 {
 
+    final String DEFAULT_DB_NAME = "file-depot";
+
     File getUploadDirectory();
 
-    public abstract CouchDBConfiguration getDatabaseConfig();
+    CouchDBConfiguration getDatabaseConfig();
 
 }

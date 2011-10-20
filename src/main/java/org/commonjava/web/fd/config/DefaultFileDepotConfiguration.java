@@ -18,18 +18,20 @@
 package org.commonjava.web.fd.config;
 
 import java.io.File;
+import java.net.MalformedURLException;
 
 import javax.enterprise.inject.Alternative;
 import javax.inject.Named;
 
 import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.conf.DefaultCouchDBConfiguration;
+import org.commonjava.couch.util.UrlUtils;
 import org.commonjava.web.config.annotation.ConfigName;
 import org.commonjava.web.config.annotation.SectionName;
 import org.commonjava.web.config.section.ConfigurationSectionListener;
 
 @SectionName( ConfigurationSectionListener.DEFAULT_SECTION )
-@Named( "standalone" )
+@Named( "do-not-use-directly" )
 @Alternative
 public class DefaultFileDepotConfiguration
     extends DefaultCouchDBConfiguration
@@ -41,7 +43,18 @@ public class DefaultFileDepotConfiguration
 
     private File uploadDirectory = DEFAULT_UPLOAD_DIR;
 
+    private String dbBaseUrl;
+
     private CouchDBConfiguration dbConfig;
+
+    public DefaultFileDepotConfiguration()
+    {}
+
+    public DefaultFileDepotConfiguration( final File uploadDirectory, final String dbUrl )
+    {
+        this.uploadDirectory = uploadDirectory;
+        setDatabaseUrl( dbUrl );
+    }
 
     @Override
     public File getUploadDirectory()
@@ -64,6 +77,25 @@ public class DefaultFileDepotConfiguration
         }
 
         return dbConfig;
+    }
+
+    public String getDbBaseUrl()
+    {
+        return dbBaseUrl;
+    }
+
+    @ConfigName( "db.base.url" )
+    public void setDbBaseUrl( final String dbBaseUrl )
+    {
+        this.dbBaseUrl = dbBaseUrl;
+        try
+        {
+            setDatabaseUrl( UrlUtils.buildUrl( dbBaseUrl, DEFAULT_DB_NAME ) );
+        }
+        catch ( MalformedURLException e )
+        {
+            throw new IllegalArgumentException( "Invalid base-url: " + dbBaseUrl, e );
+        }
     }
 
 }

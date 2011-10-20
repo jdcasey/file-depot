@@ -22,6 +22,7 @@ import static org.apache.commons.io.IOUtils.closeQuietly;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.inject.Default;
@@ -30,7 +31,9 @@ import javax.inject.Singleton;
 
 import org.commonjava.auth.couch.conf.DefaultUserManagerConfig;
 import org.commonjava.auth.couch.conf.UserManagerConfiguration;
+import org.commonjava.auth.couch.inject.UserData;
 import org.commonjava.couch.conf.CouchDBConfiguration;
+import org.commonjava.couch.util.UrlUtils;
 import org.commonjava.web.config.ConfigurationException;
 import org.commonjava.web.config.DefaultConfigurationListener;
 import org.commonjava.web.config.dotconf.DotConfConfigurationReader;
@@ -89,9 +92,31 @@ public class FileDepotConfigurationFactory
     }
 
     @Produces
+    @UserData
+    @Default
+    public CouchDBConfiguration getUserCouchConfig()
+    {
+        if ( fileDepotConfig.getDbBaseUrl() != null && userManagerConfig.getDatabaseUrl() == null )
+        {
+            try
+            {
+                userManagerConfig.setDatabaseUrl( UrlUtils.buildUrl( fileDepotConfig.getDbBaseUrl(),
+                                                                     UserManagerConfiguration.DEFAULT_DB_NAME ) );
+            }
+            catch ( MalformedURLException e )
+            {
+                throw new IllegalArgumentException( "Invalid base-url: "
+                    + fileDepotConfig.getDbBaseUrl(), e );
+            }
+        }
+
+        return userManagerConfig.getDatabaseConfig();
+    }
+
+    @Produces
     @FileDepotData
     @Default
-    public CouchDBConfiguration getCouchDBConfiguration()
+    public CouchDBConfiguration getFileDepotCouchConfig()
     {
         return fileDepotConfig.getDatabaseConfig();
     }
