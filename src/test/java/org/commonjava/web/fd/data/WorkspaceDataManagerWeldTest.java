@@ -9,6 +9,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.File;
 import java.util.List;
+import java.util.Properties;
 
 import javax.enterprise.inject.Default;
 import javax.enterprise.inject.Produces;
@@ -18,8 +19,6 @@ import javax.inject.Singleton;
 import org.apache.log4j.Level;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
-import org.commonjava.auth.couch.conf.DefaultUserManagerConfig;
-import org.commonjava.auth.couch.conf.UserManagerConfiguration;
 import org.commonjava.auth.couch.data.PasswordManager;
 import org.commonjava.auth.couch.data.UserDataException;
 import org.commonjava.auth.couch.data.UserDataManager;
@@ -33,6 +32,7 @@ import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.test.fixture.LoggingFixture;
 import org.commonjava.web.fd.config.DefaultFileDepotConfiguration;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
+import org.commonjava.web.fd.fixture.TestFDPropertiesProducer;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
 import org.commonjava.web.test.fixture.TestData;
@@ -45,10 +45,6 @@ import org.junit.Test;
 
 public class WorkspaceDataManagerWeldTest
 {
-
-    private static final String USER_DB = "http://localhost:5984/test-users";
-
-    private static final String FD_DB = "http://localhost:5984/test-fd";
 
     private CouchRealm realm;
 
@@ -190,29 +186,17 @@ public class WorkspaceDataManagerWeldTest
     public static final class TestConfigProvider
     {
 
-        @Produces
-        @TestData
-        @Default
-        public UserManagerConfiguration getUserConfig()
-        {
-            return new DefaultUserManagerConfig( "admin@nowhere.com", "password", "Admin", "User",
-                                                 USER_DB );
-        }
-
-        @Produces
-        @TestData
-        @UserData
-        public CouchDBConfiguration getUserCouchConfig()
-        {
-            return getUserConfig().getDatabaseConfig();
-        }
+        private final Properties props = new TestFDPropertiesProducer().getTestProperties();
 
         @Produces
         @TestData
         @Default
         public FileDepotConfiguration getFileDepotConfig()
         {
-            return new DefaultFileDepotConfiguration( new File( "." ), FD_DB );
+            return new DefaultFileDepotConfiguration(
+                                                      new File(
+                                                                props.getProperty( TestFDPropertiesProducer.FD_STORAGE_ROOT_DIR ) ),
+                                                      props.getProperty( TestFDPropertiesProducer.FD_DATABASE_URL ) );
         }
 
         @Produces
