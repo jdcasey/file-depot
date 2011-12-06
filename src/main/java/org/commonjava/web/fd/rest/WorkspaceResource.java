@@ -39,7 +39,7 @@ import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.AuthorizationException;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.subject.Subject;
-import org.commonjava.auth.couch.model.Permission;
+import org.commonjava.couch.rbac.Permission;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.common.model.Listing;
 import org.commonjava.web.common.ser.JsonSerializer;
@@ -73,11 +73,11 @@ public class WorkspaceResource
     @Consumes( { MediaType.APPLICATION_JSON } )
     public Response create()
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.ADMIN ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
 
         @SuppressWarnings( "unchecked" )
-        Workspace ws = jsonSerializer.fromRequestBody( request, Workspace.class );
+        final Workspace ws = jsonSerializer.fromRequestBody( request, Workspace.class );
 
         logger.info( "\n\nGot workspace: %s\n\n", ws );
 
@@ -86,18 +86,19 @@ public class WorkspaceResource
         {
             if ( dataManager.storeWorkspace( ws ) )
             {
-                builder =
-                    Response.created( uriInfo.getAbsolutePathBuilder().path( ws.getName() ).build() );
+                builder = Response.created( uriInfo.getAbsolutePathBuilder()
+                                                   .path( ws.getName() )
+                                                   .build() );
             }
             else
             {
-                builder = Response.status( Status.CONFLICT ).entity( "Repository already exists." );
+                builder = Response.status( Status.CONFLICT )
+                                  .entity( "Repository already exists." );
             }
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            logger.error( "Failed to create workspace: %s. Reason: %s", e, ws.getName(),
-                          e.getMessage() );
+            logger.error( "Failed to create workspace: %s. Reason: %s", e, ws.getName(), e.getMessage() );
             builder = Response.serverError();
         }
 
@@ -108,15 +109,16 @@ public class WorkspaceResource
     @Path( "{name}" )
     public Response delete( @PathParam( "name" ) final String name )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.ADMIN ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
 
         try
         {
             dataManager.deleteWorkspace( name );
-            return Response.ok().build();
+            return Response.ok()
+                           .build();
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
             logger.error( "Failed to delete workspace: %s. Reason: %s", e, name, e.getMessage() );
             throw new WebApplicationException( Status.INTERNAL_SERVER_ERROR );
@@ -129,14 +131,16 @@ public class WorkspaceResource
     public Response getAllWorkspaces()
         throws WorkspaceDataException
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 Permission.ADMIN ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
 
-        Listing<Workspace> listing = new Listing<Workspace>( dataManager.getWorkspaces() );
-        String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
-        {}.getType() );
+        final Listing<Workspace> listing = new Listing<Workspace>( dataManager.getWorkspaces() );
+        final String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
+        {
+        }.getType() );
 
-        return Response.ok( json ).build();
+        return Response.ok( json )
+                       .build();
     }
 
     @GET
@@ -145,25 +149,26 @@ public class WorkspaceResource
     public Response getUserWorkspaces()
         throws WorkspaceDataException
     {
-        Subject subject = SecurityUtils.getSubject();
+        final Subject subject = SecurityUtils.getSubject();
 
         try
         {
             subject.checkPermission( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
             return getAllWorkspaces();
         }
-        catch ( AuthorizationException e )
+        catch ( final AuthorizationException e )
         {
             // Used to check whether the user can see all workspaces.
         }
 
-        Listing<Workspace> listing =
-            new Listing<Workspace>( dataManager.getWorkspacesForUser( subject ) );
+        final Listing<Workspace> listing = new Listing<Workspace>( dataManager.getWorkspacesForUser( subject ) );
 
-        String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
-        {}.getType() );
+        final String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
+        {
+        }.getType() );
 
-        return Response.ok( json ).build();
+        return Response.ok( json )
+                       .build();
     }
 
 }

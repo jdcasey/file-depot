@@ -7,35 +7,27 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-import java.io.File;
 import java.util.List;
-import java.util.Properties;
 
-import javax.enterprise.inject.Default;
-import javax.enterprise.inject.Produces;
 import javax.enterprise.util.AnnotationLiteral;
-import javax.inject.Singleton;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
 import org.commonjava.auth.couch.data.PasswordManager;
 import org.commonjava.auth.couch.data.UserDataException;
 import org.commonjava.auth.couch.data.UserDataManager;
-import org.commonjava.auth.couch.inject.UserData;
-import org.commonjava.auth.couch.model.User;
+import org.commonjava.auth.couch.inject.UserDataLiteral;
 import org.commonjava.auth.shiro.couch.CouchPermissionResolver;
 import org.commonjava.auth.shiro.couch.CouchRealm;
 import org.commonjava.auth.shiro.couch.model.ShiroUserUtils;
-import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchManager;
+import org.commonjava.couch.rbac.User;
 import org.commonjava.couch.test.fixture.LoggingFixture;
-import org.commonjava.web.fd.config.DefaultFileDepotConfiguration;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
-import org.commonjava.web.fd.fixture.TestFDPropertiesProducer;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
-import org.commonjava.web.test.fixture.TestData;
 import org.jboss.weld.environment.se.Weld;
 import org.jboss.weld.environment.se.WeldContainer;
 import org.junit.After;
@@ -58,6 +50,8 @@ public class WorkspaceDataManagerWeldTest
 
     private UserDataManager userMgr;
 
+    private FileDepotConfiguration config;
+
     @BeforeClass
     public static void setupStatic()
     {
@@ -69,19 +63,32 @@ public class WorkspaceDataManagerWeldTest
     public void setup()
         throws Exception
     {
-        WeldContainer weld = new Weld().initialize();
+        final WeldContainer weld = new Weld().initialize();
 
-        fdCouch =
-            weld.instance().select( CouchManager.class, new AnnotationLiteral<FileDepotData>()
-            {} ).get();
+        config = weld.instance()
+                     .select( FileDepotConfiguration.class )
+                     .get();
 
-        userCouch = weld.instance().select( CouchManager.class, new AnnotationLiteral<UserData>()
-        {} ).get();
+        fdCouch = weld.instance()
+                      .select( CouchManager.class, new AnnotationLiteral<FileDepotData>()
+                      {
+                      } )
+                      .get();
 
-        dataManager = weld.instance().select( WorkspaceDataManager.class ).get();
-        passwordManager = weld.instance().select( PasswordManager.class ).get();
+        userCouch = weld.instance()
+                        .select( CouchManager.class, new UserDataLiteral() )
+                        .get();
 
-        userMgr = weld.instance().select( UserDataManager.class ).get();
+        dataManager = weld.instance()
+                          .select( WorkspaceDataManager.class )
+                          .get();
+        passwordManager = weld.instance()
+                              .select( PasswordManager.class )
+                              .get();
+
+        userMgr = weld.instance()
+                      .select( UserDataManager.class )
+                      .get();
         realm = new CouchRealm( userMgr, new CouchPermissionResolver( userMgr ) );
         setupSecurityManager( realm );
 
@@ -96,6 +103,8 @@ public class WorkspaceDataManagerWeldTest
     {
         fdCouch.dropDatabase();
         userCouch.dropDatabase();
+        FileUtils.forceDelete( config.getUploadDirectory() );
+
         clearSubject();
     }
 
@@ -103,10 +112,10 @@ public class WorkspaceDataManagerWeldTest
     public void storeAndRetrieveWorkspace()
         throws WorkspaceDataException
     {
-        Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( "test" );
 
         dataManager.storeWorkspace( ws );
-        Workspace result = dataManager.getWorkspace( ws.getName() );
+        final Workspace result = dataManager.getWorkspace( ws.getName() );
 
         assertThat( result.getName(), equalTo( ws.getName() ) );
     }
@@ -115,13 +124,13 @@ public class WorkspaceDataManagerWeldTest
     public void storeTwoAndRetrieveAll()
         throws WorkspaceDataException
     {
-        Workspace ws = new Workspace( "test" );
-        Workspace ws2 = new Workspace( "test2" );
+        final Workspace ws = new Workspace( "test" );
+        final Workspace ws2 = new Workspace( "test2" );
 
         dataManager.storeWorkspace( ws );
         dataManager.storeWorkspace( ws2 );
 
-        List<Workspace> workspaces = dataManager.getWorkspaces();
+        final List<Workspace> workspaces = dataManager.getWorkspaces();
 
         assertThat( workspaces, notNullValue() );
         assertThat( workspaces.size(), equalTo( 2 ) );
@@ -134,26 +143,25 @@ public class WorkspaceDataManagerWeldTest
     public void storeThreeAndRetrieveTwoAssociatedWithUser()
         throws WorkspaceDataException, UserDataException
     {
-        Workspace ws = new Workspace( "test" );
-        Workspace ws2 = new Workspace( "test2" );
-        Workspace ws3 = new Workspace( "test3" );
+        final Workspace ws = new Workspace( "test" );
+        final Workspace ws2 = new Workspace( "test2" );
+        final Workspace ws3 = new Workspace( "test3" );
 
         dataManager.storeWorkspace( ws );
         dataManager.storeWorkspace( ws2 );
         dataManager.storeWorkspace( ws3 );
 
-        User user =
-            new User( "user", "user@nowherer.com", "User", "One",
-                      passwordManager.digestPassword( "password" ) );
+        final User user =
+            new User( "user", "user@nowherer.com", "User", "One", passwordManager.digestPassword( "password" ) );
         user.addRole( Workspace.userRole( ws.getName() ) );
         user.addRole( Workspace.userRole( ws2.getName() ) );
 
         userMgr.storeUser( user );
 
-        Subject subject = SecurityUtils.getSubject();
+        final Subject subject = SecurityUtils.getSubject();
         subject.login( ShiroUserUtils.getAuthenticationToken( user ) );
 
-        List<Workspace> workspaces = dataManager.getWorkspacesForUser( subject );
+        final List<Workspace> workspaces = dataManager.getWorkspacesForUser( subject );
 
         assertThat( workspaces, notNullValue() );
         assertThat( workspaces.size(), equalTo( 2 ) );
@@ -167,7 +175,7 @@ public class WorkspaceDataManagerWeldTest
     public void storeAndDeleteWorkspace()
         throws WorkspaceDataException
     {
-        Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( "test" );
 
         dataManager.storeWorkspace( ws );
         Workspace result = dataManager.getWorkspace( ws.getName() );
@@ -180,33 +188,6 @@ public class WorkspaceDataManagerWeldTest
         result = dataManager.getWorkspace( ws.getName() );
 
         assertThat( result, nullValue() );
-    }
-
-    @Singleton
-    public static final class TestConfigProvider
-    {
-
-        private final Properties props = new TestFDPropertiesProducer().getTestProperties();
-
-        @Produces
-        @TestData
-        @Default
-        public FileDepotConfiguration getFileDepotConfig()
-        {
-            return new DefaultFileDepotConfiguration(
-                                                      new File(
-                                                                props.getProperty( TestFDPropertiesProducer.FD_STORAGE_ROOT_DIR ) ),
-                                                      props.getProperty( TestFDPropertiesProducer.FD_DATABASE_URL ) );
-        }
-
-        @Produces
-        @TestData
-        @FileDepotData
-        public CouchDBConfiguration getFileDepotCouchConfig()
-        {
-            return getFileDepotConfig().getDatabaseConfig();
-        }
-
     }
 
 }

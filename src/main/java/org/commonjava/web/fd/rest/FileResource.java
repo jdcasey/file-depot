@@ -47,7 +47,7 @@ import javax.ws.rs.core.UriBuilder;
 
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
-import org.commonjava.auth.couch.model.Permission;
+import org.commonjava.couch.rbac.Permission;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.common.model.Listing;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
@@ -73,11 +73,10 @@ public class FileResource
     @PUT
     @Path( "{name}" )
     public Response save( @PathParam( "workspaceName" ) final String workspaceName,
-                          @PathParam( "name" ) final String filename,
-                          @Context final HttpServletRequest request )
+                          @PathParam( "name" ) final String filename, @Context final HttpServletRequest request )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.CREATE ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.CREATE ) );
 
         InputStream in = null;
         try
@@ -95,9 +94,10 @@ public class FileResource
         {
             f = getFilesystemFile( workspaceName, filename );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            return Response.status( Status.INTERNAL_SERVER_ERROR ).build();
+            return Response.status( Status.INTERNAL_SERVER_ERROR )
+                           .build();
         }
 
         if ( f.exists() )
@@ -106,7 +106,8 @@ public class FileResource
             throw new WebApplicationException( Status.CONFLICT );
         }
 
-        f.getParentFile().mkdirs();
+        f.getParentFile()
+         .mkdirs();
 
         FileOutputStream out = null;
         try
@@ -124,7 +125,10 @@ public class FileResource
             closeQuietly( out );
         }
 
-        return Response.created( UriBuilder.fromResource( getClass() ).path( filename ).build() ).build();
+        return Response.created( UriBuilder.fromResource( getClass() )
+                                           .path( filename )
+                                           .build() )
+                       .build();
     }
 
     @DELETE
@@ -132,24 +136,26 @@ public class FileResource
     public Response delete( @PathParam( "workspaceName" ) final String workspaceName,
                             @PathParam( "name" ) final String filename )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.CREATE ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.CREATE ) );
 
         File f;
         try
         {
             f = getFilesystemFile( workspaceName, filename );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            return Response.status( Status.INTERNAL_SERVER_ERROR ).build();
+            return Response.status( Status.INTERNAL_SERVER_ERROR )
+                           .build();
         }
 
         if ( f.exists() )
         {
             if ( f.delete() )
             {
-                return Response.ok().build();
+                return Response.ok()
+                               .build();
             }
             else
             {
@@ -168,17 +174,17 @@ public class FileResource
     @Produces( { MediaType.APPLICATION_JSON } )
     public Listing<FileInfo> list( @PathParam( "workspaceName" ) final String workspaceName )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         try
         {
             return getFiles( workspaceName );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            throw new WebApplicationException(
-                                               Response.status( Status.INTERNAL_SERVER_ERROR ).build() );
+            throw new WebApplicationException( Response.status( Status.INTERNAL_SERVER_ERROR )
+                                                       .build() );
         }
     }
 
@@ -187,8 +193,8 @@ public class FileResource
     @Produces( MediaType.TEXT_PLAIN )
     public String listText( @PathParam( "workspaceName" ) final String workspaceName )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         final StringBuilder sb = new StringBuilder();
         try
@@ -200,13 +206,17 @@ public class FileResource
                     sb.append( "\n" );
                 }
 
-                sb.append( f.length() ).append( "  " ).append( new Date( f.lastModified() ) ).append( "  " ).append( f.getName() );
+                sb.append( f.length() )
+                  .append( "  " )
+                  .append( new Date( f.lastModified() ) )
+                  .append( "  " )
+                  .append( f.getName() );
             }
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            throw new WebApplicationException(
-                                               Response.status( Status.INTERNAL_SERVER_ERROR ).build() );
+            throw new WebApplicationException( Response.status( Status.INTERNAL_SERVER_ERROR )
+                                                       .build() );
         }
 
         return sb.toString();
@@ -218,17 +228,17 @@ public class FileResource
     public FileInfo getFileInfo( @PathParam( "workspaceName" ) final String workspaceName,
                                  @PathParam( "name" ) final String filename )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         try
         {
             return _getFileInfo( workspaceName, filename );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            throw new WebApplicationException(
-                                               Response.status( Status.INTERNAL_SERVER_ERROR ).build() );
+            throw new WebApplicationException( Response.status( Status.INTERNAL_SERVER_ERROR )
+                                                       .build() );
         }
     }
 
@@ -238,22 +248,24 @@ public class FileResource
     public Response getFileInfoText( @PathParam( "workspaceName" ) final String workspaceName,
                                      @PathParam( "name" ) final String filename )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         String result;
         try
         {
             result = String.valueOf( _getFileInfo( workspaceName, filename ) );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            return Response.status( Status.INTERNAL_SERVER_ERROR ).build();
+            return Response.status( Status.INTERNAL_SERVER_ERROR )
+                           .build();
         }
 
         logger.info( "Result:\n\n%s\n\n", result );
 
-        return Response.ok( result, MediaType.TEXT_PLAIN ).build();
+        return Response.ok( result, MediaType.TEXT_PLAIN )
+                       .build();
     }
 
     @GET
@@ -262,26 +274,29 @@ public class FileResource
     public Response getFile( @PathParam( "workspaceName" ) final String workspaceName,
                              @PathParam( "name" ) final String filename )
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         File f;
         try
         {
             f = getFilesystemFile( workspaceName, filename );
         }
-        catch ( WebApplicationException e )
+        catch ( final WebApplicationException e )
         {
-            return Response.status( Status.BAD_REQUEST ).build();
+            return Response.status( Status.BAD_REQUEST )
+                           .build();
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            return Response.status( Status.INTERNAL_SERVER_ERROR ).build();
+            return Response.status( Status.INTERNAL_SERVER_ERROR )
+                           .build();
         }
 
         if ( f.exists() )
         {
-            return Response.ok( f ).build();
+            return Response.ok( f )
+                           .build();
             // return Response.ok( f ).header( "Content-Disposition",
             // "attachment; filename=\"" + filename + "\"" ).build();
 
@@ -289,7 +304,8 @@ public class FileResource
         }
         else
         {
-            return Response.status( Status.NOT_FOUND ).build();
+            return Response.status( Status.NOT_FOUND )
+                           .build();
         }
     }
 
@@ -302,15 +318,14 @@ public class FileResource
         {
             ws = wsDataManager.getWorkspace( workspaceName );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName,
-                          e.getMessage() );
+            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName, e.getMessage() );
             throw e;
         }
 
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         final File dir = new File( config.getUploadDirectory(), ws.getPathName() );
 
@@ -329,10 +344,10 @@ public class FileResource
     private FileInfo _getFileInfo( final String workspaceName, final String filename )
         throws WorkspaceDataException
     {
-        SecurityUtils.getSubject().isPermitted( Permission.name( Workspace.NAMESPACE,
-                                                                 workspaceName, Permission.READ ) );
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
-        File f = getFilesystemFile( workspaceName, filename );
+        final File f = getFilesystemFile( workspaceName, filename );
 
         if ( f.exists() )
         {
@@ -361,10 +376,9 @@ public class FileResource
             logger.error( "Failed to decode filename: %s", e, e.getMessage() );
             throw new WebApplicationException( Status.BAD_REQUEST );
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName,
-                          e.getMessage() );
+            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName, e.getMessage() );
             throw e;
         }
 

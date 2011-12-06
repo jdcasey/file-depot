@@ -17,9 +17,9 @@
  ******************************************************************************/
 package org.commonjava.web.fd.data;
 
-import static org.commonjava.auth.couch.model.Permission.ADMIN;
-import static org.commonjava.auth.couch.model.Permission.CREATE;
-import static org.commonjava.auth.couch.model.Permission.READ;
+import static org.commonjava.couch.rbac.Permission.ADMIN;
+import static org.commonjava.couch.rbac.Permission.CREATE;
+import static org.commonjava.couch.rbac.Permission.READ;
 import static org.commonjava.couch.util.IdUtils.namespaceId;
 
 import java.util.HashSet;
@@ -33,12 +33,13 @@ import javax.inject.Singleton;
 import org.apache.shiro.subject.Subject;
 import org.commonjava.auth.couch.data.UserDataException;
 import org.commonjava.auth.couch.data.UserDataManager;
-import org.commonjava.auth.couch.model.Permission;
-import org.commonjava.auth.couch.model.User;
 import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.model.CouchDocRef;
+import org.commonjava.couch.rbac.Permission;
+import org.commonjava.couch.rbac.Role;
+import org.commonjava.couch.rbac.User;
 import org.commonjava.couch.util.JoinString;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
@@ -66,7 +67,8 @@ public class WorkspaceDataManager
     private CouchDBConfiguration couchConfig;
 
     public WorkspaceDataManager()
-    {}
+    {
+    }
 
     public WorkspaceDataManager( final FileDepotConfiguration config, final CouchManager couch )
     {
@@ -83,16 +85,21 @@ public class WorkspaceDataManager
 
             userMgr.install();
             userMgr.setupAdminInformation();
+
+            final Permission wsAdmin = new Permission( Workspace.NAMESPACE, Permission.WILDCARD );
+            userMgr.storePermission( wsAdmin );
+
+            final Role wsAdminRole = new Role( "workspace-admin", wsAdmin );
+            userMgr.storeRole( wsAdminRole );
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
             throw new WorkspaceDataException(
                                               "Failed to initialize workspace-management database: %s (application: %s). Reason: %s",
                                               e, couchConfig.getDatabaseUrl(),
-                                              WorkspaceAppDescription.APPLICATION_RESOURCE,
-                                              e.getMessage() );
+                                              WorkspaceAppDescription.APPLICATION_RESOURCE, e.getMessage() );
         }
-        catch ( UserDataException e )
+        catch ( final UserDataException e )
         {
             throw new WorkspaceDataException(
                                               "Failed to initialize admin user/privilege information in workspace-management database: %s. Reason: %s",
@@ -109,10 +116,9 @@ public class WorkspaceDataManager
             workspace.calculateDenormalizedFields();
             stored = couch.store( workspace, false );
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
-            throw new WorkspaceDataException( "Failed to store workspace: %s. Reason: %s", e,
-                                              workspace, e.getMessage() );
+            throw new WorkspaceDataException( "Failed to store workspace: %s. Reason: %s", e, workspace, e.getMessage() );
         }
 
         if ( stored )
@@ -125,10 +131,9 @@ public class WorkspaceDataManager
                     userMgr.createPermissions( Workspace.NAMESPACE, name, ADMIN, CREATE, READ );
 
                 userMgr.createRole( Workspace.adminRole( name ), perms.values() );
-                userMgr.createRole( Workspace.userRole( name ), perms.get( READ ),
-                                    perms.get( CREATE ) );
+                userMgr.createRole( Workspace.userRole( name ), perms.get( READ ), perms.get( CREATE ) );
             }
-            catch ( UserDataException e )
+            catch ( final UserDataException e )
             {
                 throw new WorkspaceDataException(
                                                   "Failed to add permissions and roles for controlling workspace: %s. Reason: %s",
@@ -144,13 +149,11 @@ public class WorkspaceDataManager
     {
         try
         {
-            return couch.getDocument( new CouchDocRef( namespaceId( Workspace.NAMESPACE, name ) ),
-                                      Workspace.class );
+            return couch.getDocument( new CouchDocRef( namespaceId( Workspace.NAMESPACE, name ) ), Workspace.class );
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
-            throw new WorkspaceDataException( "Failed to read workspace: %s. Reason: %s", e, name,
-                                              e.getMessage() );
+            throw new WorkspaceDataException( "Failed to read workspace: %s. Reason: %s", e, name, e.getMessage() );
         }
     }
 
@@ -161,10 +164,9 @@ public class WorkspaceDataManager
         {
             couch.delete( new CouchDocRef( namespaceId( Workspace.NAMESPACE, name ) ) );
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
-            throw new WorkspaceDataException( "Failed to delete workspace: %s. Reason: %s", e,
-                                              name, e.getMessage() );
+            throw new WorkspaceDataException( "Failed to delete workspace: %s. Reason: %s", e, name, e.getMessage() );
         }
     }
 
@@ -173,13 +175,11 @@ public class WorkspaceDataManager
     {
         try
         {
-            return couch.getViewListing( new WorkspaceViewRequest( config, View.WORKSPACES ),
-                                         Workspace.class );
+            return couch.getViewListing( new WorkspaceViewRequest( config, View.WORKSPACES ), Workspace.class );
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
-            throw new WorkspaceDataException( "Failed to read workspace listing: %s", e,
-                                              e.getMessage() );
+            throw new WorkspaceDataException( "Failed to read workspace listing: %s", e, e.getMessage() );
         }
     }
 
@@ -189,20 +189,20 @@ public class WorkspaceDataManager
         User user;
         try
         {
-            user = userMgr.getUser( subject.getPrincipal().toString() );
+            user = userMgr.getUser( subject.getPrincipal()
+                                           .toString() );
         }
-        catch ( UserDataException e )
+        catch ( final UserDataException e )
         {
-            throw new WorkspaceDataException(
-                                              "Failed to read user data for workspace retrieval: %s. Reason: %s",
-                                              e, subject.getPrincipal(), e.getMessage() );
+            throw new WorkspaceDataException( "Failed to read user data for workspace retrieval: %s. Reason: %s", e,
+                                              subject.getPrincipal(), e.getMessage() );
         }
 
-        Set<String> roles = user.getRoles();
-        Set<CouchDocRef> workspaceRefs = new HashSet<CouchDocRef>();
-        for ( String role : roles )
+        final Set<String> roles = user.getRoles();
+        final Set<CouchDocRef> workspaceRefs = new HashSet<CouchDocRef>();
+        for ( final String role : roles )
         {
-            String wsId = Workspace.getWorkspaceForRole( role );
+            final String wsId = Workspace.getWorkspaceForRole( role );
             if ( wsId != null )
             {
                 workspaceRefs.add( new CouchDocRef( namespaceId( Workspace.NAMESPACE, wsId ) ) );
@@ -215,11 +215,10 @@ public class WorkspaceDataManager
         {
             return couch.getDocuments( Workspace.class, workspaceRefs );
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
-            throw new WorkspaceDataException(
-                                              "Failed to retrieve workspaces for user: %s. Reason: %s",
-                                              e, subject.getPrincipal(), e.getMessage() );
+            throw new WorkspaceDataException( "Failed to retrieve workspaces for user: %s. Reason: %s", e,
+                                              subject.getPrincipal(), e.getMessage() );
         }
     }
 

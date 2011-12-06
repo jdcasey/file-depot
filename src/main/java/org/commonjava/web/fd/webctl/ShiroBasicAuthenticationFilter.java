@@ -16,7 +16,7 @@ public class ShiroBasicAuthenticationFilter
     extends BasicHttpAuthenticationFilter
 {
 
-    public static final String APPLICATION_NAME_KEY = "aprox-application-name";
+    public static final String APPLICATION_NAME_KEY = "file-depot-application-name";
 
     public static final String DEFAULT_APPLICATION_NAME = "file-depot";
 
@@ -26,11 +26,10 @@ public class ShiroBasicAuthenticationFilter
     private PasswordManager passwordManager;
 
     @Override
-    protected AuthenticationToken createToken( final String username, final String password,
-                                               final boolean rememberMe, final String host )
+    protected AuthenticationToken createToken( final String username, final String password, final boolean rememberMe,
+                                               final String host )
     {
-        return new UsernamePasswordToken( username, passwordManager.digestPassword( password ),
-                                          rememberMe, host );
+        return new UsernamePasswordToken( username, passwordManager.digestPassword( password ), rememberMe, host );
     }
 
     @Override
@@ -38,7 +37,8 @@ public class ShiroBasicAuthenticationFilter
         throws Exception
     {
         logger.info( "Initializing authentication filter..." );
-        Object appName = getFilterConfig().getServletContext().getAttribute( APPLICATION_NAME_KEY );
+        Object appName = getFilterConfig().getServletContext()
+                                          .getAttribute( APPLICATION_NAME_KEY );
         if ( appName == null )
         {
             appName = DEFAULT_APPLICATION_NAME;
