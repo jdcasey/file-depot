@@ -11,6 +11,8 @@ import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.fixture.TestFDFactory;
 import org.commonjava.web.fd.inject.FileDepotData;
+import org.commonjava.web.fd.webctl.ShiroBasicAuthenticationFilter;
+import org.commonjava.web.fd.webctl.ShiroSetupListener;
 import org.commonjava.web.test.fixture.TestWarArchiveBuilder;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Before;
@@ -34,6 +36,8 @@ public abstract class AbstractFDLiveTest
         final TestWarArchiveBuilder builder =
             new TestWarArchiveBuilder( testClass ).withExtraClasses( AbstractFDLiveTest.class, TestFDFactory.class )
                                                   .withLog4jProperties()
+                                                  .withoutBuildClasses( ShiroBasicAuthenticationFilter.class,
+                                                                        ShiroSetupListener.class )
                                                   // .withJarKnockoutClasses( "couch-user-test-harness.*",
                                                   // TestAuthenticationFilter.class,
                                                   // TestAuthenticationControls.class )
