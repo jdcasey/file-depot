@@ -17,16 +17,12 @@
  ******************************************************************************/
 package org.commonjava.web.fd.config;
 
-import java.io.File;
-
 import org.commonjava.couch.conf.CouchDBConfiguration;
 
 public interface FileDepotConfiguration
 {
 
     final String DEFAULT_DB_NAME = "file-depot";
-
-    File getUploadDirectory();
 
     CouchDBConfiguration getDatabaseConfig();
 

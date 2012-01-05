@@ -17,8 +17,10 @@
  ******************************************************************************/
 package org.commonjava.web.fd.model;
 
-import static org.apache.commons.codec.digest.DigestUtils.sha512Hex;
 import static org.commonjava.couch.util.IdUtils.namespaceId;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import org.commonjava.couch.model.AbstractCouchDocument;
 import org.commonjava.couch.model.DenormalizedCouchDoc;
@@ -32,19 +34,23 @@ public class Workspace
 
     public static final String NAMESPACE = "workspace";
 
+    public static final String METADATA_LAST_MODIFIED = "last_modified";
+
     private String name;
 
-    private String pathName;
+    private Map<String, Map<String, String>> fileMetadata;
 
     @Expose( deserialize = false )
     private final String doctype = NAMESPACE;
 
     Workspace()
-    {}
+    {
+    }
 
     public Workspace( final String name )
     {
         this.name = name;
+        calculateDenormalizedFields();
     }
 
     public String getName()
@@ -60,17 +66,7 @@ public class Workspace
     @Override
     public String toString()
     {
-        return String.format( "Workspace [name='%s', path-name='%s]", name, pathName );
-    }
-
-    public String getPathName()
-    {
-        return pathName;
-    }
-
-    void setPathName( final String pathName )
-    {
-        this.pathName = pathName;
+        return String.format( "Workspace [name='%s']", name );
     }
 
     @Override
@@ -121,7 +117,6 @@ public class Workspace
     public void calculateDenormalizedFields()
     {
         setCouchDocId( namespaceId( NAMESPACE, this.name ) );
-        this.pathName = sha512Hex( this.name );
     }
 
     public static String adminRole( final String wsName )
@@ -136,7 +131,7 @@ public class Workspace
 
     public static String getWorkspaceForRole( final String role )
     {
-        String[] parts = role.split( ":" );
+        final String[] parts = role.split( ":" );
         if ( parts.length < 2 || !NAMESPACE.equals( parts[0] ) )
         {
             return null;
@@ -145,4 +140,64 @@ public class Workspace
         return parts[1];
     }
 
+    public Map<String, Map<String, String>> getFileMetadata()
+    {
+        return fileMetadata;
+    }
+
+    void setFileMetadata( final Map<String, Map<String, String>> fileMetadata )
+    {
+        this.fileMetadata = fileMetadata;
+    }
+
+    public synchronized void setFileMetadata( final String file, final String key, final String value )
+    {
+        if ( fileMetadata == null )
+        {
+            fileMetadata = new HashMap<String, Map<String, String>>();
+        }
+
+        Map<String, String> md = fileMetadata.get( file );
+        if ( md == null )
+        {
+            md = new HashMap<String, String>();
+            fileMetadata.put( file, md );
+        }
+
+        md.put( key, value );
+    }
+
+    public synchronized void setFileMetadata( final String file, final Map<String, String> map )
+    {
+        if ( fileMetadata == null )
+        {
+            fileMetadata = new HashMap<String, Map<String, String>>();
+        }
+
+        fileMetadata.put( file, map );
+    }
+
+    public Map<String, String> getFileMetadataMap( final String file )
+    {
+        if ( fileMetadata != null )
+        {
+            return fileMetadata.get( file );
+        }
+
+        return null;
+    }
+
+    public String getFileMetadata( final String file, final String key )
+    {
+        if ( fileMetadata != null )
+        {
+            final Map<String, String> md = fileMetadata.get( file );
+            if ( md != null )
+            {
+                return md.get( key );
+            }
+        }
+
+        return null;
+    }
 }

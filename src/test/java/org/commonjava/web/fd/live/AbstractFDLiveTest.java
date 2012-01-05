@@ -4,18 +4,21 @@ import java.io.File;
 
 import javax.inject.Inject;
 
-import org.apache.commons.io.FileUtils;
+import org.cjtest.fixture.TestAuthenticationControls;
 import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.user.web.test.AbstractUserRESTCouchTest;
-import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.fixture.TestFDFactory;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.webctl.ShiroBasicAuthenticationFilter;
 import org.commonjava.web.fd.webctl.ShiroSetupListener;
 import org.commonjava.web.test.fixture.TestWarArchiveBuilder;
+import org.commonjava.web.test.fixture.WebFixture;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TestName;
 
 public abstract class AbstractFDLiveTest
     extends AbstractUserRESTCouchTest
@@ -29,12 +32,19 @@ public abstract class AbstractFDLiveTest
     protected WorkspaceDataManager dataManager;
 
     @Inject
-    private FileDepotConfiguration config;
+    protected TestAuthenticationControls authControls;
 
-    protected static WebArchive createDeployment( final Class<?> testClass )
+    @Rule
+    public WebFixture fixture = new WebFixture();
+
+    @Rule
+    public TestName testName = new TestName();
+
+    protected static WebArchive createDeployment( final Class<?> testClass, final Class<?>... extras )
     {
         final TestWarArchiveBuilder builder =
             new TestWarArchiveBuilder( testClass ).withExtraClasses( AbstractFDLiveTest.class, TestFDFactory.class )
+                                                  .withExtraClasses( extras )
                                                   .withLog4jProperties()
                                                   .withoutBuildClasses( ShiroBasicAuthenticationFilter.class,
                                                                         ShiroSetupListener.class )
@@ -51,12 +61,14 @@ public abstract class AbstractFDLiveTest
         throws Exception
     {
         dataManager.install();
+        authControls.resetUser();
+        System.out.println( "\n\n\nRunning: " + testName.getMethodName() + "\n\n\n\n" );
     }
 
+    @After
     public final void teardown()
-        throws Exception
     {
-        FileUtils.forceDelete( config.getUploadDirectory() );
+        System.out.println( "\n\n\nFinished: " + testName.getMethodName() + "\n\n\n\n" );
     }
 
     @Override

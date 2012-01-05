@@ -11,7 +11,6 @@ import java.util.List;
 
 import javax.enterprise.util.AnnotationLiteral;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
@@ -25,7 +24,7 @@ import org.commonjava.auth.shiro.couch.model.ShiroUserUtils;
 import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.rbac.User;
 import org.commonjava.couch.test.fixture.LoggingFixture;
-import org.commonjava.web.fd.config.FileDepotConfiguration;
+import org.commonjava.web.fd.WorkspaceDataTestPlan;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
 import org.jboss.weld.environment.se.Weld;
@@ -36,6 +35,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class WorkspaceDataManagerWeldTest
+    implements WorkspaceDataTestPlan
 {
 
     private CouchRealm realm;
@@ -50,8 +50,6 @@ public class WorkspaceDataManagerWeldTest
 
     private UserDataManager userMgr;
 
-    private FileDepotConfiguration config;
-
     @BeforeClass
     public static void setupStatic()
     {
@@ -64,10 +62,6 @@ public class WorkspaceDataManagerWeldTest
         throws Exception
     {
         final WeldContainer weld = new Weld().initialize();
-
-        config = weld.instance()
-                     .select( FileDepotConfiguration.class )
-                     .get();
 
         fdCouch = weld.instance()
                       .select( CouchManager.class, new AnnotationLiteral<FileDepotData>()
@@ -103,11 +97,15 @@ public class WorkspaceDataManagerWeldTest
     {
         fdCouch.dropDatabase();
         userCouch.dropDatabase();
-        FileUtils.forceDelete( config.getUploadDirectory() );
 
         clearSubject();
     }
 
+    /*
+     * (non-Javadoc)
+     * @see org.commonjava.web.fd.data.WorkspaceDataManagerTestPlan#storeAndRetrieveWorkspace()
+     */
+    @Override
     @Test
     public void storeAndRetrieveWorkspace()
         throws WorkspaceDataException
@@ -120,6 +118,11 @@ public class WorkspaceDataManagerWeldTest
         assertThat( result.getName(), equalTo( ws.getName() ) );
     }
 
+    /*
+     * (non-Javadoc)
+     * @see org.commonjava.web.fd.data.WorkspaceDataManagerTestPlan#storeTwoAndRetrieveAll()
+     */
+    @Override
     @Test
     public void storeTwoAndRetrieveAll()
         throws WorkspaceDataException
@@ -139,6 +142,11 @@ public class WorkspaceDataManagerWeldTest
         assertThat( workspaces.contains( ws2 ), equalTo( true ) );
     }
 
+    /*
+     * (non-Javadoc)
+     * @see org.commonjava.web.fd.data.WorkspaceDataManagerTestPlan#storeThreeAndRetrieveTwoAssociatedWithUser()
+     */
+    @Override
     @Test
     public void storeThreeAndRetrieveTwoAssociatedWithUser()
         throws WorkspaceDataException, UserDataException
@@ -171,6 +179,11 @@ public class WorkspaceDataManagerWeldTest
         assertThat( workspaces.contains( ws3 ), equalTo( false ) );
     }
 
+    /*
+     * (non-Javadoc)
+     * @see org.commonjava.web.fd.data.WorkspaceDataManagerTestPlan#storeAndDeleteWorkspace()
+     */
+    @Override
     @Test
     public void storeAndDeleteWorkspace()
         throws WorkspaceDataException

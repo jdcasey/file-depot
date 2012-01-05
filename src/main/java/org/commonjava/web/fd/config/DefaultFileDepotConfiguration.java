@@ -17,7 +17,6 @@
  ******************************************************************************/
 package org.commonjava.web.fd.config;
 
-import java.io.File;
 import java.net.MalformedURLException;
 
 import javax.enterprise.inject.Alternative;
@@ -38,34 +37,17 @@ public class DefaultFileDepotConfiguration
     implements FileDepotConfiguration
 {
 
-    protected static final File DEFAULT_UPLOAD_DIR =
-        new File( System.getProperty( "java.io.tmpdir", "/tmp" ), "uploads" );
-
-    private File uploadDirectory = DEFAULT_UPLOAD_DIR;
-
     private String dbBaseUrl;
 
     private CouchDBConfiguration dbConfig;
 
     public DefaultFileDepotConfiguration()
-    {}
-
-    public DefaultFileDepotConfiguration( final File uploadDirectory, final String dbUrl )
     {
-        this.uploadDirectory = uploadDirectory;
+    }
+
+    public DefaultFileDepotConfiguration( final String dbUrl )
+    {
         setDatabaseUrl( dbUrl );
-    }
-
-    @Override
-    public File getUploadDirectory()
-    {
-        return uploadDirectory;
-    }
-
-    @ConfigName( "upload.dir" )
-    public void setUploadDirectory( final File uploadDir )
-    {
-        this.uploadDirectory = uploadDir;
     }
 
     @Override
@@ -92,7 +74,7 @@ public class DefaultFileDepotConfiguration
         {
             setDatabaseUrl( UrlUtils.buildUrl( dbBaseUrl, DEFAULT_DB_NAME ) );
         }
-        catch ( MalformedURLException e )
+        catch ( final MalformedURLException e )
         {
             throw new IllegalArgumentException( "Invalid base-url: " + dbBaseUrl, e );
         }

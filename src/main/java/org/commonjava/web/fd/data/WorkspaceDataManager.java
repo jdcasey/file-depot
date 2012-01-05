@@ -36,6 +36,7 @@ import org.commonjava.auth.couch.data.UserDataManager;
 import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.couch.db.CouchManager;
+import org.commonjava.couch.model.Attachment;
 import org.commonjava.couch.model.CouchDocRef;
 import org.commonjava.couch.rbac.Permission;
 import org.commonjava.couch.rbac.Role;
@@ -46,6 +47,7 @@ import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceAppDescription.View;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
+import org.commonjava.web.fd.model.WorkspaceFile;
 
 @Singleton
 public class WorkspaceDataManager
@@ -170,6 +172,108 @@ public class WorkspaceDataManager
         }
     }
 
+    public boolean storeWorkspaceFile( final WorkspaceFile file )
+        throws WorkspaceDataException
+    {
+        boolean stored = false;
+        try
+        {
+            file.calculateDenormalizedFields();
+            stored = couch.store( file, false );
+        }
+        catch ( final CouchDBException e )
+        {
+            throw new WorkspaceDataException( "Failed to store workspace file: %s. Reason: %s", e, file, e.getMessage() );
+        }
+
+        if ( stored )
+        {
+            try
+            {
+                couch.attach( file, file.getInboundAttachment() );
+            }
+            catch ( final CouchDBException e )
+            {
+                try
+                {
+                    couch.delete( file );
+                }
+                catch ( final CouchDBException eRevert )
+                {
+                    logger.error( "Failed to delete workspace file entry: %s. Reason: %s", eRevert, file,
+                                  eRevert.getMessage() );
+                }
+
+                throw new WorkspaceDataException( "Failed to store workspace file: %s. Reason: %s", e, file,
+                                                  e.getMessage() );
+            }
+        }
+
+        return stored;
+    }
+
+    public WorkspaceFile getWorkspaceFile( final String workspace, final String file )
+        throws WorkspaceDataException
+    {
+        try
+        {
+            return couch.getDocument( new CouchDocRef( namespaceId( WorkspaceFile.NAMESPACE, workspace, file ) ),
+                                      WorkspaceFile.class );
+        }
+        catch ( final CouchDBException e )
+        {
+            throw new WorkspaceDataException( "Failed to read file: %s in workspace: %s. Reason: %s", e, file,
+                                              workspace, e.getMessage() );
+        }
+    }
+
+    public Attachment getWorkspaceFileData( final String workspace, final String file )
+        throws WorkspaceDataException
+    {
+        try
+        {
+            return couch.getAttachment( new CouchDocRef( namespaceId( WorkspaceFile.NAMESPACE, workspace, file ) ),
+                                        file );
+        }
+        catch ( final CouchDBException e )
+        {
+            throw new WorkspaceDataException(
+                                              "Failed to read data attachment for file: %s in workspace: %s. Reason: %s",
+                                              e, file, workspace, e.getMessage() );
+        }
+    }
+
+    public void deleteWorkspaceFile( final String workspace, final String file )
+        throws WorkspaceDataException
+    {
+        try
+        {
+            couch.delete( new CouchDocRef( namespaceId( WorkspaceFile.NAMESPACE, workspace, file ) ) );
+        }
+        catch ( final CouchDBException e )
+        {
+            throw new WorkspaceDataException( "Failed to delete file: %s from workspace: %s. Reason: %s", e, file,
+                                              workspace, e.getMessage() );
+        }
+    }
+
+    public List<WorkspaceFile> getWorkspaceFiles( final String workspace )
+        throws WorkspaceDataException
+    {
+        try
+        {
+            final WorkspaceViewRequest req = new WorkspaceViewRequest( config, View.WORKSPACE_FILES );
+            req.setKey( workspace );
+
+            return couch.getViewListing( req, WorkspaceFile.class );
+        }
+        catch ( final CouchDBException e )
+        {
+            throw new WorkspaceDataException( "Failed to read file listing for workspace: %s. Reason: %s", e,
+                                              workspace, e.getMessage() );
+        }
+    }
+
     public List<Workspace> getWorkspaces()
         throws WorkspaceDataException
     {
@@ -199,17 +303,19 @@ public class WorkspaceDataManager
         }
 
         final Set<String> roles = user.getRoles();
+        logger.info( "Got user roles:\n\n%s\n\n", roles );
         final Set<CouchDocRef> workspaceRefs = new HashSet<CouchDocRef>();
         for ( final String role : roles )
         {
             final String wsId = Workspace.getWorkspaceForRole( role );
             if ( wsId != null )
             {
+                logger.info( "Found workspace role: %s", wsId );
                 workspaceRefs.add( new CouchDocRef( namespaceId( Workspace.NAMESPACE, wsId ) ) );
             }
         }
 
-        logger.debug( "Retrieving workspaces for:\n\t%s", new JoinString( "\n\t", workspaceRefs ) );
+        logger.info( "Retrieving workspaces for:\n\t%s", new JoinString( "\n\t", workspaceRefs ) );
 
         try
         {

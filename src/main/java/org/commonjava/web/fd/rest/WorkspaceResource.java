@@ -19,11 +19,9 @@ package org.commonjava.web.fd.rest;
 
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -66,28 +64,23 @@ public class WorkspaceResource
     @Context
     private UriInfo uriInfo;
 
-    @Context
-    private HttpServletRequest request;
+    // @Context
+    // private HttpServletRequest request;
 
-    @POST
-    @Consumes( { MediaType.APPLICATION_JSON } )
-    public Response create()
+    @PUT
+    @Path( "{name}" )
+    public Response create( @PathParam( "name" ) final String name )
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
 
-        @SuppressWarnings( "unchecked" )
-        final Workspace ws = jsonSerializer.fromRequestBody( request, Workspace.class );
-
-        logger.info( "\n\nGot workspace: %s\n\n", ws );
-
+        final Workspace ws = new Workspace( name );
         ResponseBuilder builder;
         try
         {
             if ( dataManager.storeWorkspace( ws ) )
             {
                 builder = Response.created( uriInfo.getAbsolutePathBuilder()
-                                                   .path( ws.getName() )
                                                    .build() );
             }
             else
@@ -126,15 +119,55 @@ public class WorkspaceResource
     }
 
     @GET
+    @Path( "{name}" )
+    @Produces( MediaType.APPLICATION_JSON )
+    public Response getWorkspace( @PathParam( "name" ) final String name )
+    {
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, name, Permission.ADMIN ) );
+
+        try
+        {
+            final Workspace ws = dataManager.getWorkspace( name );
+            if ( ws == null )
+            {
+                return Response.status( Status.NOT_FOUND )
+                               .build();
+            }
+            else
+            {
+                final String json = jsonSerializer.toString( ws );
+                return Response.ok( json )
+                               .build();
+            }
+        }
+        catch ( final WorkspaceDataException e )
+        {
+            logger.error( "Failed to retrieve workspace: %s. Reason: %s", e, name, e.getMessage() );
+            return Response.serverError()
+                           .build();
+        }
+    }
+
+    @GET
     @Path( "all" )
     @Produces( { MediaType.APPLICATION_JSON } )
     public Response getAllWorkspaces()
-        throws WorkspaceDataException
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
 
-        final Listing<Workspace> listing = new Listing<Workspace>( dataManager.getWorkspaces() );
+        Listing<Workspace> listing;
+        try
+        {
+            listing = new Listing<Workspace>( dataManager.getWorkspaces() );
+        }
+        catch ( final WorkspaceDataException e )
+        {
+            logger.error( "Failed to get workspace listing. Reason: %s", e, e.getMessage() );
+            throw new WebApplicationException( Status.INTERNAL_SERVER_ERROR );
+        }
+
         final String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
         {
         }.getType() );
@@ -147,13 +180,14 @@ public class WorkspaceResource
     @Path( "my" )
     @Produces( { MediaType.APPLICATION_JSON } )
     public Response getUserWorkspaces()
-        throws WorkspaceDataException
     {
         final Subject subject = SecurityUtils.getSubject();
 
         try
         {
             subject.checkPermission( Permission.name( Workspace.NAMESPACE, Permission.ADMIN ) );
+
+            logger.info( "retrieving ALL workspaces (workspace admin found)" );
             return getAllWorkspaces();
         }
         catch ( final AuthorizationException e )
@@ -161,7 +195,18 @@ public class WorkspaceResource
             // Used to check whether the user can see all workspaces.
         }
 
-        final Listing<Workspace> listing = new Listing<Workspace>( dataManager.getWorkspacesForUser( subject ) );
+        Listing<Workspace> listing;
+        try
+        {
+            logger.info( "retrieving workspaces for user: %s", subject );
+            listing = new Listing<Workspace>( dataManager.getWorkspacesForUser( subject ) );
+        }
+        catch ( final WorkspaceDataException e )
+        {
+            logger.error( "Failed to get workspace listing for user: %s. Reason: %s", e, subject.getPrincipal(),
+                          e.getMessage() );
+            throw new WebApplicationException( Status.INTERNAL_SERVER_ERROR );
+        }
 
         final String json = jsonSerializer.toString( listing, new TypeToken<Listing<Workspace>>()
         {

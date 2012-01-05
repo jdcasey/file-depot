@@ -13,7 +13,7 @@ public class WorkspaceAppDescription
 
     public enum View
     {
-        WORKSPACES( "workspaces" );
+        WORKSPACES( "workspaces" ), WORKSPACE_FILES( "workspace-files" );
 
         String name;
 
@@ -47,8 +47,8 @@ public class WorkspaceAppDescription
     {
         if ( viewNames == null )
         {
-            Set<String> names = new HashSet<String>();
-            for ( View view : View.values() )
+            final Set<String> names = new HashSet<String>();
+            for ( final View view : View.values() )
             {
                 names.add( view.viewName() );
             }

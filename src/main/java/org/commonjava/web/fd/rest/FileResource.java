@@ -17,44 +17,44 @@
  ******************************************************************************/
 package org.commonjava.web.fd.rest;
 
-import static org.apache.commons.io.IOUtils.closeQuietly;
-
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
+import org.commonjava.couch.model.Attachment;
+import org.commonjava.couch.model.StreamAttachment;
 import org.commonjava.couch.rbac.Permission;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.common.model.Listing;
-import org.commonjava.web.fd.config.FileDepotConfiguration;
+import org.commonjava.web.common.ser.JsonSerializer;
 import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
-import org.commonjava.web.fd.model.FileInfo;
 import org.commonjava.web.fd.model.Workspace;
+import org.commonjava.web.fd.model.WorkspaceFile;
 
 @Path( "/files/{workspaceName}" )
 @RequestScoped
@@ -65,64 +65,48 @@ public class FileResource
     private final Logger logger = new Logger( getClass() );
 
     @Inject
-    private FileDepotConfiguration config;
+    private WorkspaceDataManager wsDataManager;
 
     @Inject
-    private WorkspaceDataManager wsDataManager;
+    private JsonSerializer serializer;
 
     @PUT
     @Path( "{name}" )
     public Response save( @PathParam( "workspaceName" ) final String workspaceName,
-                          @PathParam( "name" ) final String filename, @Context final HttpServletRequest request )
+                          @PathParam( "name" ) final String filename,
+                          @HeaderParam( "Content-Type" ) final MediaType contentType,
+                          @HeaderParam( "Content-Length" ) final int contentLength,
+                          @QueryParam( "lastModified" ) final Long lastModified,
+                          @Context final HttpServletRequest request )
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.CREATE ) );
 
-        InputStream in = null;
+        final long lm = lastModified == null ? System.currentTimeMillis() : lastModified.longValue();
+
+        StreamAttachment attach;
         try
         {
-            in = request.getInputStream();
+            attach = new StreamAttachment( filename, request.getInputStream(), contentType.getType(), contentLength );
         }
         catch ( final IOException e )
         {
             logger.error( "Failed to get input stream from request: %s", e, e.getMessage() );
-            throw new WebApplicationException( Status.BAD_REQUEST );
-        }
-
-        File f;
-        try
-        {
-            f = getFilesystemFile( workspaceName, filename );
-        }
-        catch ( final WorkspaceDataException e )
-        {
-            return Response.status( Status.INTERNAL_SERVER_ERROR )
+            return Response.serverError()
                            .build();
         }
 
-        if ( f.exists() )
-        {
-            logger.error( "File already exists: %s", f.getName() );
-            throw new WebApplicationException( Status.CONFLICT );
-        }
+        final WorkspaceFile wf = new WorkspaceFile( workspaceName, filename, attach, lm );
 
-        f.getParentFile()
-         .mkdirs();
-
-        FileOutputStream out = null;
         try
         {
-            out = new FileOutputStream( f );
+            wsDataManager.storeWorkspaceFile( wf );
         }
-        catch ( final IOException e )
+        catch ( final WorkspaceDataException e )
         {
-            logger.error( "Cannot write file: %s. Reason: %s", e, f.getName(), e.getMessage() );
-            throw new WebApplicationException( Status.INTERNAL_SERVER_ERROR );
-        }
-        finally
-        {
-            closeQuietly( in );
-            closeQuietly( out );
+            logger.error( e.getMessage(), e );
+            return Response.serverError()
+                           .build();
         }
 
         return Response.created( UriBuilder.fromResource( getClass() )
@@ -139,47 +123,36 @@ public class FileResource
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.CREATE ) );
 
-        File f;
         try
         {
-            f = getFilesystemFile( workspaceName, filename );
+            wsDataManager.deleteWorkspaceFile( workspaceName, filename );
         }
         catch ( final WorkspaceDataException e )
         {
-            return Response.status( Status.INTERNAL_SERVER_ERROR )
+            logger.error( e.getMessage(), e );
+            return Response.serverError()
                            .build();
         }
 
-        if ( f.exists() )
-        {
-            if ( f.delete() )
-            {
-                return Response.ok()
-                               .build();
-            }
-            else
-            {
-                throw new WebApplicationException( Status.NOT_MODIFIED );
-            }
-        }
-        else
-        {
-            logger.info( "File not found: %s", f );
-            throw new WebApplicationException( Status.NOT_FOUND );
-        }
+        return Response.ok()
+                       .build();
     }
 
     @GET
     @Path( "list" )
     @Produces( { MediaType.APPLICATION_JSON } )
-    public Listing<FileInfo> list( @PathParam( "workspaceName" ) final String workspaceName )
+    public Response list( @PathParam( "workspaceName" ) final String workspaceName )
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
         try
         {
-            return getFiles( workspaceName );
+            final Listing<WorkspaceFile> items = new Listing<WorkspaceFile>( getFiles( workspaceName ) );
+
+            final String json = serializer.toString( items );
+            return Response.ok( json )
+                           .build();
         }
         catch ( final WorkspaceDataException e )
         {
@@ -191,7 +164,7 @@ public class FileResource
     @GET
     @Path( "list" )
     @Produces( MediaType.TEXT_PLAIN )
-    public String listText( @PathParam( "workspaceName" ) final String workspaceName )
+    public Response listText( @PathParam( "workspaceName" ) final String workspaceName )
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
@@ -199,47 +172,62 @@ public class FileResource
         final StringBuilder sb = new StringBuilder();
         try
         {
-            for ( final FileInfo f : getFiles( workspaceName ) )
+            for ( final WorkspaceFile f : getFiles( workspaceName ) )
             {
                 if ( sb.length() > 0 )
                 {
                     sb.append( "\n" );
                 }
 
-                sb.append( f.length() )
+                sb.append( f.getContentLength() )
                   .append( "  " )
-                  .append( new Date( f.lastModified() ) )
+                  .append( new Date( f.getLastModified() ) )
                   .append( "  " )
-                  .append( f.getName() );
+                  .append( f.getFileName() );
             }
+
+            return Response.ok( sb )
+                           .build();
         }
         catch ( final WorkspaceDataException e )
         {
             throw new WebApplicationException( Response.status( Status.INTERNAL_SERVER_ERROR )
                                                        .build() );
         }
-
-        return sb.toString();
     }
 
     @GET
     @Path( "{name}/info" )
     @Produces( { MediaType.APPLICATION_JSON } )
-    public FileInfo getFileInfo( @PathParam( "workspaceName" ) final String workspaceName,
+    public Response getFileInfo( @PathParam( "workspaceName" ) final String workspaceName,
                                  @PathParam( "name" ) final String filename )
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
+        ResponseBuilder builder = null;
         try
         {
-            return _getFileInfo( workspaceName, filename );
+            final WorkspaceFile wsFile = _getFileInfo( workspaceName, filename );
+            if ( wsFile == null )
+            {
+                builder = Response.status( Status.NOT_FOUND );
+            }
+            else
+            {
+                final String json = serializer.toString( wsFile );
+                logger.info( "Result:\n\n%s\n\n", json );
+
+                builder = Response.ok( json );
+            }
         }
         catch ( final WorkspaceDataException e )
         {
-            throw new WebApplicationException( Response.status( Status.INTERNAL_SERVER_ERROR )
-                                                       .build() );
+            builder = Response.status( Status.INTERNAL_SERVER_ERROR );
         }
+
+        return builder == null ? Response.serverError()
+                                         .build() : builder.build();
     }
 
     @GET
@@ -251,21 +239,35 @@ public class FileResource
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
-        String result;
+        ResponseBuilder builder = null;
         try
         {
-            result = String.valueOf( _getFileInfo( workspaceName, filename ) );
+            final WorkspaceFile wsFile = _getFileInfo( workspaceName, filename );
+            if ( wsFile == null )
+            {
+                builder = Response.status( Status.NOT_FOUND );
+            }
+            else
+            {
+                final StringBuilder sb = new StringBuilder();
+                sb.append( wsFile.getContentLength() )
+                  .append( "  " )
+                  .append( new Date( wsFile.getLastModified() ) )
+                  .append( "  " )
+                  .append( wsFile.getFileName() );
+
+                logger.info( "Result:\n\n%s\n\n", sb );
+
+                builder = Response.ok( sb.toString() );
+            }
         }
         catch ( final WorkspaceDataException e )
         {
-            return Response.status( Status.INTERNAL_SERVER_ERROR )
-                           .build();
+            builder = Response.status( Status.INTERNAL_SERVER_ERROR );
         }
 
-        logger.info( "Result:\n\n%s\n\n", result );
-
-        return Response.ok( result, MediaType.TEXT_PLAIN )
-                       .build();
+        return builder == null ? Response.serverError()
+                                         .build() : builder.build();
     }
 
     @GET
@@ -277,112 +279,84 @@ public class FileResource
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
-        File f;
         try
         {
-            f = getFilesystemFile( workspaceName, filename );
-        }
-        catch ( final WebApplicationException e )
-        {
-            return Response.status( Status.BAD_REQUEST )
-                           .build();
-        }
-        catch ( final WorkspaceDataException e )
-        {
-            return Response.status( Status.INTERNAL_SERVER_ERROR )
-                           .build();
-        }
-
-        if ( f.exists() )
-        {
-            return Response.ok( f )
-                           .build();
-            // return Response.ok( f ).header( "Content-Disposition",
-            // "attachment; filename=\"" + filename + "\"" ).build();
-
-            // .header( "Content-Disposition", "inline; filename=\"" + filename + "\"" )
-        }
-        else
-        {
-            return Response.status( Status.NOT_FOUND )
-                           .build();
-        }
-    }
-
-    public Listing<FileInfo> getFiles( final String workspaceName )
-        throws WorkspaceDataException
-    {
-        final List<FileInfo> result = new ArrayList<FileInfo>();
-        final Workspace ws;
-        try
-        {
-            ws = wsDataManager.getWorkspace( workspaceName );
-        }
-        catch ( final WorkspaceDataException e )
-        {
-            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName, e.getMessage() );
-            throw e;
-        }
-
-        SecurityUtils.getSubject()
-                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
-
-        final File dir = new File( config.getUploadDirectory(), ws.getPathName() );
-
-        if ( dir.exists() )
-        {
-            for ( final String name : dir.list() )
+            final WorkspaceFile wsFile = wsDataManager.getWorkspaceFile( workspaceName, filename );
+            if ( wsFile == null )
             {
-                final File f = new File( dir, name );
-                result.add( new FileInfo( f ) );
+                return Response.status( Status.NOT_FOUND )
+                               .build();
             }
-        }
 
-        return new Listing<FileInfo>( result );
+            final Attachment attachment = wsDataManager.getWorkspaceFileData( workspaceName, filename );
+
+            final ResponseBuilder builder = Response.ok( attachment.getData() );
+            builder.header( "Content-Type", wsFile.getContentType() );
+            builder.header( "Content-Length", wsFile.getContentLength() );
+
+            final long lastMod = wsFile.getLastModified();
+            if ( lastMod > 0 )
+            {
+                final SimpleDateFormat format = new SimpleDateFormat( "EEE, d MM yyyy HH:mm:ss z" );
+                final Calendar cal = Calendar.getInstance( TimeZone.getTimeZone( "GMT" ) );
+                cal.setTimeInMillis( lastMod );
+
+                final String time = format.format( cal.getTime() );
+                builder.header( "Last-Modified", time );
+            }
+
+            return builder.build();
+        }
+        catch ( final WorkspaceDataException e )
+        {
+            logger.error( "Failed to retrieve file-data for: %s in workspace: %s. Reason: %s", e, filename,
+                          workspaceName, e.getMessage() );
+            return Response.serverError()
+                           .build();
+        }
+        catch ( final IOException e )
+        {
+            logger.error( "Failed to retrieve file-data for: %s in workspace: %s. Reason: %s", e, filename,
+                          workspaceName, e.getMessage() );
+            return Response.serverError()
+                           .build();
+        }
     }
 
-    private FileInfo _getFileInfo( final String workspaceName, final String filename )
+    public List<WorkspaceFile> getFiles( final String workspaceName )
         throws WorkspaceDataException
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
 
-        final File f = getFilesystemFile( workspaceName, filename );
-
-        if ( f.exists() )
-        {
-            return new FileInfo( f );
-        }
-        else
-        {
-            logger.error( "File not found: %s", f );
-            throw new WebApplicationException( Status.NOT_FOUND );
-        }
-    }
-
-    private File getFilesystemFile( final String workspaceName, final String filename )
-        throws WorkspaceDataException
-    {
-        File f;
         try
         {
-            final Workspace ws = wsDataManager.getWorkspace( workspaceName );
-
-            final File dir = new File( config.getUploadDirectory(), ws.getPathName() );
-            f = new File( dir, URLDecoder.decode( filename, "UTF-8" ) );
-        }
-        catch ( final UnsupportedEncodingException e )
-        {
-            logger.error( "Failed to decode filename: %s", e, e.getMessage() );
-            throw new WebApplicationException( Status.BAD_REQUEST );
+            return wsDataManager.getWorkspaceFiles( workspaceName );
         }
         catch ( final WorkspaceDataException e )
         {
-            logger.error( "Failed to retrieve workspace info: %s. Reason: %s", e, workspaceName, e.getMessage() );
+            logger.error( "Failed to retrieve file listing for workspace: %s. Reason: %s", e, workspaceName,
+                          e.getMessage() );
             throw e;
         }
+    }
 
-        return f;
+    private WorkspaceFile _getFileInfo( final String workspaceName, final String filename )
+        throws WorkspaceDataException
+    {
+        SecurityUtils.getSubject()
+                     .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.READ ) );
+
+        try
+        {
+            return wsDataManager.getWorkspaceFile( workspaceName, filename );
+        }
+        catch ( final WorkspaceDataException e )
+        {
+            logger.error( "Failed to retrieve info for file: %s in workspace: %s. Reason: %s", e, filename,
+                          workspaceName, e.getMessage() );
+            throw e;
+        }
     }
 
 }

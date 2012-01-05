@@ -106,6 +106,10 @@
       <groupId>org.commonjava.couch.test</groupId>
       <artifactId>couch-test-harness</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.commonjava.couch.test</groupId>
+      <artifactId>web-test-harness</artifactId>
+    </dependency>
   </dependencies>
   
   <build>

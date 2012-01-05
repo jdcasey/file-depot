@@ -17,6 +17,7 @@ public class ShiroSetupListener
     public void contextInitialized( final ServletContextEvent sce )
     {
         logger.info( "Initializing CouchDB Shiro authentication/authorization realm..." );
+        super.setAutoCreateAuthorizationInfo( true );
         super.contextInitialized( sce );
         logger.info( "...done." );
     }

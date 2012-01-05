@@ -1,8 +1,5 @@
 package org.commonjava.web.fd.fixture;
 
-import java.io.File;
-import java.io.IOException;
-
 import javax.enterprise.inject.Default;
 import javax.enterprise.inject.Produces;
 import javax.inject.Singleton;
@@ -30,19 +27,7 @@ public class TestFDFactory
     {
         if ( config == null )
         {
-            File repoDir;
-            try
-            {
-                repoDir = File.createTempFile( "file-depot.", ".dir" );
-                repoDir.delete();
-                repoDir.mkdirs();
-            }
-            catch ( final IOException e )
-            {
-                throw new RuntimeException( "Cannot create test upload directory." );
-            }
-
-            config = new DefaultFileDepotConfiguration( repoDir, DB_URL );
+            config = new DefaultFileDepotConfiguration( DB_URL );
         }
 
         return config;
