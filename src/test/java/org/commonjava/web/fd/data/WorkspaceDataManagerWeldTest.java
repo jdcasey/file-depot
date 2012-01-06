@@ -7,10 +7,14 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import java.io.File;
+import java.util.Date;
 import java.util.List;
 
 import javax.enterprise.util.AnnotationLiteral;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Level;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
@@ -22,20 +26,26 @@ import org.commonjava.auth.shiro.couch.CouchPermissionResolver;
 import org.commonjava.auth.shiro.couch.CouchRealm;
 import org.commonjava.auth.shiro.couch.model.ShiroUserUtils;
 import org.commonjava.couch.db.CouchManager;
+import org.commonjava.couch.model.Attachment;
+import org.commonjava.couch.model.FileAttachment;
 import org.commonjava.couch.rbac.User;
 import org.commonjava.couch.test.fixture.LoggingFixture;
+import org.commonjava.web.fd.WSFileDataTestPlan;
 import org.commonjava.web.fd.WorkspaceDataTestPlan;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
+import org.commonjava.web.fd.model.WorkspaceFile;
 import org.jboss.weld.environment.se.Weld;
 import org.jboss.weld.environment.se.WeldContainer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class WorkspaceDataManagerWeldTest
-    implements WorkspaceDataTestPlan
+    implements WorkspaceDataTestPlan, WSFileDataTestPlan
 {
 
     private CouchRealm realm;
@@ -49,6 +59,9 @@ public class WorkspaceDataManagerWeldTest
     private CouchManager userCouch;
 
     private UserDataManager userMgr;
+
+    @Rule
+    public TemporaryFolder temp = new TemporaryFolder();
 
     @BeforeClass
     public static void setupStatic()
@@ -201,6 +214,76 @@ public class WorkspaceDataManagerWeldTest
         result = dataManager.getWorkspace( ws.getName() );
 
         assertThat( result, nullValue() );
+    }
+
+    @Override
+    @Test
+    public void storeFileWithWorkspaceAndRetrieveInfo()
+        throws Exception
+    {
+        final Workspace ws = new Workspace( "test" );
+
+        dataManager.storeWorkspace( ws );
+
+        final File data = temp.newFile( "test.txt" );
+        FileUtils.write( data, "This is a test" );
+        final WorkspaceFile wsFile =
+            new WorkspaceFile( ws.getName(), "test.txt", new FileAttachment( "test.txt", data, "text/plain",
+                                                                             data.length() ), new Date() );
+
+        dataManager.storeWorkspaceFile( wsFile );
+
+        final WorkspaceFile result = dataManager.getWorkspaceFile( ws.getName(), wsFile.getFileName() );
+
+        assertThat( result.getContentLength(), equalTo( wsFile.getContentLength() ) );
+        assertThat( result.getContentType(), equalTo( wsFile.getContentType() ) );
+    }
+
+    @Override
+    @Test
+    public void storeFileWithWorkspaceAndRetrieveData()
+        throws Exception
+    {
+        final Workspace ws = new Workspace( "test" );
+
+        dataManager.storeWorkspace( ws );
+
+        final File data = temp.newFile( "test.txt" );
+        FileUtils.write( data, "This is a test" );
+        final WorkspaceFile wsFile =
+            new WorkspaceFile( ws.getName(), "test.txt", new FileAttachment( "test.txt", data, "text/plain",
+                                                                             data.length() ), new Date() );
+
+        dataManager.storeWorkspaceFile( wsFile );
+
+        final Attachment result = dataManager.getWorkspaceFileData( ws.getName(), wsFile.getFileName() );
+
+        assertThat( result.getContentLength(), equalTo( wsFile.getContentLength() ) );
+        assertThat( result.getContentType(), equalTo( wsFile.getContentType() ) );
+
+        assertThat( IOUtils.toString( result.getData() ), equalTo( "This is a test" ) );
+    }
+
+    @Override
+    @Test
+    public void storeFileAndDeleteFileWithWorkspace()
+        throws Exception
+    {
+        final Workspace ws = new Workspace( "test" );
+
+        dataManager.storeWorkspace( ws );
+
+        final File data = temp.newFile( "test.txt" );
+        FileUtils.write( data, "This is a test" );
+        final WorkspaceFile wsFile =
+            new WorkspaceFile( ws.getName(), "test.txt", new FileAttachment( "test.txt", data, "text/plain",
+                                                                             data.length() ), new Date() );
+
+        dataManager.storeWorkspaceFile( wsFile );
+        assertThat( dataManager.getWorkspaceFile( ws.getName(), wsFile.getFileName() ), notNullValue() );
+
+        dataManager.deleteWorkspaceFile( ws.getName(), wsFile.getFileName() );
+        assertThat( dataManager.getWorkspaceFile( ws.getName(), wsFile.getFileName() ), nullValue() );
     }
 
 }

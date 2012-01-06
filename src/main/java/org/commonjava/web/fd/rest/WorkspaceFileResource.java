@@ -41,7 +41,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.UriInfo;
 
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
@@ -56,10 +56,10 @@ import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.model.Workspace;
 import org.commonjava.web.fd.model.WorkspaceFile;
 
-@Path( "/files/{workspaceName}" )
+@Path( "/workspace/{workspaceName}/file/" )
 @RequestScoped
 @RequiresAuthentication
-public class FileResource
+public class WorkspaceFileResource
 {
 
     private final Logger logger = new Logger( getClass() );
@@ -77,7 +77,7 @@ public class FileResource
                           @HeaderParam( "Content-Type" ) final MediaType contentType,
                           @HeaderParam( "Content-Length" ) final int contentLength,
                           @QueryParam( "lastModified" ) final Long lastModified,
-                          @Context final HttpServletRequest request )
+                          @Context final HttpServletRequest request, @Context final UriInfo uriInfo )
     {
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.CREATE ) );
@@ -87,7 +87,8 @@ public class FileResource
         StreamAttachment attach;
         try
         {
-            attach = new StreamAttachment( filename, request.getInputStream(), contentType.getType(), contentLength );
+            logger.info( "Creating file with type: '%s'", contentType );
+            attach = new StreamAttachment( filename, request.getInputStream(), contentType.toString(), contentLength );
         }
         catch ( final IOException e )
         {
@@ -109,9 +110,8 @@ public class FileResource
                            .build();
         }
 
-        return Response.created( UriBuilder.fromResource( getClass() )
-                                           .path( filename )
-                                           .build() )
+        return Response.created( uriInfo.getAbsolutePathBuilder()
+                                        .build() )
                        .build();
     }
 
@@ -197,7 +197,7 @@ public class FileResource
     }
 
     @GET
-    @Path( "{name}/info" )
+    @Path( "info/{name}" )
     @Produces( { MediaType.APPLICATION_JSON } )
     public Response getFileInfo( @PathParam( "workspaceName" ) final String workspaceName,
                                  @PathParam( "name" ) final String filename )
@@ -231,7 +231,7 @@ public class FileResource
     }
 
     @GET
-    @Path( "{name}/info" )
+    @Path( "info/{name}" )
     @Produces( MediaType.TEXT_PLAIN )
     public Response getFileInfoText( @PathParam( "workspaceName" ) final String workspaceName,
                                      @PathParam( "name" ) final String filename )

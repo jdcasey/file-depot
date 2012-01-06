@@ -4,18 +4,22 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
+import java.io.ByteArrayInputStream;
+
 import javax.inject.Inject;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.commonjava.auth.couch.data.UserDataManager;
 import org.commonjava.couch.rbac.User;
+import org.commonjava.web.fd.WSFileDataTestPlan;
 import org.commonjava.web.fd.WorkspaceDataTestPlan;
-import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.live.AbstractFDLiveTest;
 import org.commonjava.web.fd.model.Workspace;
+import org.commonjava.web.fd.model.WorkspaceFile;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
@@ -23,21 +27,19 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith( Arquillian.class )
-public class WorkspaceResourceLiveTest
+public class WorkspaceResourcesLiveTest
     extends AbstractFDLiveTest
-    implements WorkspaceDataTestPlan
+    implements WorkspaceDataTestPlan, WSFileDataTestPlan
 {
 
     @Inject
     private UserDataManager userMgr;
 
-    @Inject
-    private WorkspaceDataManager wsMgr;
-
     @Deployment
     public static WebArchive getDeployment()
     {
-        return createDeployment( WorkspaceResourceLiveTest.class, WorkspaceDataTestPlan.class );
+        return createDeployment( WorkspaceResourcesLiveTest.class, WorkspaceDataTestPlan.class,
+                                 WSFileDataTestPlan.class );
     }
 
     @Test
@@ -69,7 +71,7 @@ public class WorkspaceResourceLiveTest
         final HttpResponse response = fixture.put( fixture.resourceUrl( "workspace", "test1" ), 201 );
         fixture.assertLocationHeader( response, fixture.resourceUrl( "workspace", "test1" ) );
 
-        final Header[] headers = response.getHeaders( "Location" );
+        final Header[] headers = response.getHeaders( HttpHeaders.LOCATION );
         assertThat( headers, notNullValue() );
         assertThat( headers.length, equalTo( 1 ) );
 
@@ -124,7 +126,7 @@ public class WorkspaceResourceLiveTest
         final HttpResponse response = fixture.put( fixture.resourceUrl( "workspace", "test1" ), 201 );
         fixture.assertLocationHeader( response, fixture.resourceUrl( "workspace", "test1" ) );
 
-        final Header[] headers = response.getHeaders( "Location" );
+        final Header[] headers = response.getHeaders( HttpHeaders.LOCATION );
         assertThat( headers, notNullValue() );
         assertThat( headers.length, equalTo( 1 ) );
 
@@ -138,6 +140,79 @@ public class WorkspaceResourceLiveTest
         fixture.delete( fixture.resourceUrl( "workspace", "test1" ) );
 
         fixture.get( location, HttpStatus.SC_NOT_FOUND );
+    }
+
+    @Override
+    @Test
+    public void storeFileWithWorkspaceAndRetrieveInfo()
+        throws Exception
+    {
+        HttpResponse response = fixture.put( fixture.resourceUrl( "workspace", "test1" ), 201 );
+        final byte[] data = "This is a test".getBytes( "UTF-8" );
+        final ByteArrayInputStream bain = new ByteArrayInputStream( data );
+
+        response =
+            fixture.put( fixture.resourceUrl( "workspace", "test1", "file", "test.txt" ), 201, bain, "text/plain",
+                         data.length );
+
+        fixture.assertLocationHeader( response, fixture.resourceUrl( "workspace", "test1", "file", "test.txt" ) );
+
+        final WorkspaceFile wsFile =
+            fixture.get( fixture.resourceUrl( "workspace", "test1", "file", "info", "test.txt" ), WorkspaceFile.class );
+
+        assertThat( wsFile, notNullValue() );
+        assertThat( (int) wsFile.getContentLength(), equalTo( data.length ) );
+        assertThat( wsFile.getContentType(), equalTo( "text/plain" ) );
+        assertThat( wsFile.getFileName(), equalTo( "test.txt" ) );
+    }
+
+    @Override
+    @Test
+    public void storeFileWithWorkspaceAndRetrieveData()
+        throws Exception
+    {
+        HttpResponse response = fixture.put( fixture.resourceUrl( "workspace", "test1" ), 201 );
+        final byte[] data = "This is a test".getBytes( "UTF-8" );
+        final ByteArrayInputStream bain = new ByteArrayInputStream( data );
+
+        response =
+            fixture.put( fixture.resourceUrl( "workspace", "test1", "file", "test.txt" ), 201, bain, "text/plain",
+                         data.length );
+
+        fixture.assertLocationHeader( response, fixture.resourceUrl( "workspace", "test1", "file", "test.txt" ) );
+
+        response = fixture.getWithResponse( fixture.resourceUrl( "workspace", "test1", "file", "test.txt" ), 200 );
+
+        assertThat( response.getEntity(), notNullValue() );
+        assertThat( (int) response.getEntity()
+                                  .getContentLength(), equalTo( data.length ) );
+        assertThat( response.getEntity()
+                            .getContentType(), notNullValue() );
+        assertThat( response.getEntity()
+                            .getContentType()
+                            .getValue(), equalTo( "text/plain" ) );
+
+        assertThat( IOUtils.toString( response.getEntity()
+                                              .getContent() ), equalTo( "This is a test" ) );
+    }
+
+    @Override
+    @Test
+    public void storeFileAndDeleteFileWithWorkspace()
+        throws Exception
+    {
+        HttpResponse response = fixture.put( fixture.resourceUrl( "workspace", "test1" ), 201 );
+        final byte[] data = "This is a test".getBytes( "UTF-8" );
+        final ByteArrayInputStream bain = new ByteArrayInputStream( data );
+
+        final String fileUrl = fixture.resourceUrl( "workspace", "test1", "file", "test.txt" );
+        response = fixture.put( fileUrl, 201, bain, "text/plain", data.length );
+
+        fixture.assertLocationHeader( response, fileUrl );
+
+        response = fixture.delete( fileUrl );
+
+        response = fixture.getWithResponse( fixture.resourceUrl( "workspace", "test1", "file", "test.txt" ), 404 );
     }
 
 }

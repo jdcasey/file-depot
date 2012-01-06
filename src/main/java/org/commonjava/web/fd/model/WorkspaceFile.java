@@ -25,8 +25,7 @@ public class WorkspaceFile
     @SerializedName( "file" )
     private String fileName;
 
-    @Expose( serialize = false, deserialize = false )
-    private Attachment inboundAttachment;
+    private transient Attachment inboundAttachment;
 
     @SerializedName( "last_modified" )
     private long lastModified;
