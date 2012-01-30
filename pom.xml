@@ -199,6 +199,29 @@
           </executions>
         </plugin>
         <plugin>
+          <groupId>org.commonjava.maven.plugins</groupId>
+          <artifactId>qarqas-maven-plugin</artifactId>
+          <version>0.1</version>
+          <executions>
+            <execution>
+              <id>infra</id>
+              <goals>
+                <goal>setup</goal>
+                <goal>teardown</goal>
+              </goals>
+              <configuration>
+                <clientKey>file-depot</clientKey>
+                <configurators>reservation</configurators>
+                <useDefaultConfigurators>false</useDefaultConfigurators>
+                <output>${session.executionRootDirectory}/target/jbossas</output>
+                <configProperties>
+                  <reservationBaseUrl>http://localhost:9080/qarqas/api/1.0/reservation/</reservationBaseUrl>
+                </configProperties>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
           <artifactId>maven-war-plugin</artifactId>
           <version>2.1.1</version>
         </plugin>
@@ -219,6 +242,10 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.commonjava.maven.plugins</groupId>
+        <artifactId>qarqas-maven-plugin</artifactId>
+      </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
       </plugin>
