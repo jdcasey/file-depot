@@ -53,7 +53,7 @@ public class WorkspaceResourcesLiveTest
         response = fixture.put( fixture.resourceUrl( "workspace", "test2" ), 201 );
         fixture.assertLocationHeader( response, fixture.resourceUrl( "workspace", "test2" ) );
 
-        response = fixture.getWithResponse( resourceUrl( "workspace/all" ), 200 );
+        response = fixture.getWithResponse( fixture.resourceUrl( "workspace", "all" ), 200 );
         final String json = IOUtils.toString( response.getEntity()
                                                       .getContent() );
 
@@ -107,7 +107,7 @@ public class WorkspaceResourcesLiveTest
 
         // fixture.setCredentials( "user", "password" );
         authControls.setUser( "user" );
-        response = fixture.getWithResponse( resourceUrl( "workspace/my" ), 200 );
+        response = fixture.getWithResponse( fixture.resourceUrl( "workspace", "my" ), 200 );
         final String json = IOUtils.toString( response.getEntity()
                                                       .getContent() );
 
