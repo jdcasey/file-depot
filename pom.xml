@@ -79,8 +79,8 @@
     	<artifactId>configuration-dotconf</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.commonjava.couch.web</groupId>
-      <artifactId>web-common</artifactId>
+      <groupId>org.commonjava.web</groupId>
+      <artifactId>json-serialization</artifactId>
     </dependency>
     <dependency>
       <groupId>org.commonjava.couch</groupId>
@@ -107,8 +107,8 @@
       <artifactId>couch-test-harness</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.commonjava.couch.test</groupId>
-      <artifactId>web-test-harness</artifactId>
+      <groupId>org.commonjava.web</groupId>
+      <artifactId>json-test-harness</artifactId>
     </dependency>
   </dependencies>
   
@@ -201,7 +201,7 @@
         <plugin>
           <groupId>org.commonjava.maven.plugins</groupId>
           <artifactId>qarqas-maven-plugin</artifactId>
-          <version>0.1</version>
+          <version>0.2</version>
           <executions>
             <execution>
               <id>infra</id>

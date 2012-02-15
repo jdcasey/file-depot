@@ -39,11 +39,11 @@ import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.subject.Subject;
 import org.commonjava.couch.rbac.Permission;
 import org.commonjava.util.logging.Logger;
-import org.commonjava.web.common.model.Listing;
-import org.commonjava.web.common.ser.JsonSerializer;
 import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.model.Workspace;
+import org.commonjava.web.json.model.Listing;
+import org.commonjava.web.json.ser.JsonSerializer;
 
 import com.google.gson.reflect.TypeToken;
 
