@@ -42,6 +42,9 @@ import org.commonjava.couch.rbac.Permission;
 import org.commonjava.couch.rbac.Role;
 import org.commonjava.couch.rbac.User;
 import org.commonjava.couch.util.JoinString;
+import org.commonjava.shelflife.model.Expiration;
+import org.commonjava.shelflife.model.ExpirationKey;
+import org.commonjava.shelflife.store.couch.CouchStoreListener;
 import org.commonjava.util.logging.Logger;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceAppDescription.View;
@@ -68,6 +71,9 @@ public class WorkspaceDataManager
     @FileDepotData
     private CouchDBConfiguration couchConfig;
 
+    @Inject
+    private CouchStoreListener expirationStore;
+
     public WorkspaceDataManager()
     {
     }
@@ -76,6 +82,17 @@ public class WorkspaceDataManager
     {
         this.config = config;
         this.couch = couch;
+    }
+
+    public Expiration createExpiration( final WorkspaceFile file, final long timeout )
+    {
+        return new Expiration( createExpirationKey( file.getWorkspaceName(), file.getFileName() ),
+                               System.currentTimeMillis() + timeout );
+    }
+
+    public ExpirationKey createExpirationKey( final String workspaceName, final String fileName )
+    {
+        return new ExpirationKey( Workspace.NAMESPACE, workspaceName, WorkspaceFile.NAMESPACE, fileName );
     }
 
     public void install()
@@ -93,6 +110,8 @@ public class WorkspaceDataManager
 
             final Role wsAdminRole = new Role( "workspace-admin", wsAdmin );
             userMgr.storeRole( wsAdminRole );
+
+            expirationStore.initCouch();
         }
         catch ( final CouchDBException e )
         {

@@ -10,6 +10,7 @@ import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchFactory;
 import org.commonjava.couch.db.CouchManager;
 import org.commonjava.couch.io.CouchHttpClient;
+import org.commonjava.shelflife.inject.Shelflife;
 
 @Singleton
 public class FileDepotDataProviders
@@ -65,6 +66,14 @@ public class FileDepotDataProviders
         }
 
         return httpClient;
+    }
+
+    @Produces
+    @Default
+    @Shelflife
+    public synchronized CouchManager getShelflifeCouchManager()
+    {
+        return getCouchManager();
     }
 
 }

@@ -18,6 +18,7 @@
 package org.commonjava.web.fd.rest;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -28,6 +29,7 @@ import javax.enterprise.context.RequestScoped;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.PUT;
@@ -48,7 +50,11 @@ import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.commonjava.couch.model.Attachment;
 import org.commonjava.couch.model.StreamAttachment;
 import org.commonjava.couch.rbac.Permission;
+import org.commonjava.shelflife.expire.ExpirationManager;
+import org.commonjava.shelflife.expire.ExpirationManagerException;
+import org.commonjava.shelflife.model.Expiration;
 import org.commonjava.util.logging.Logger;
+import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.model.Workspace;
@@ -62,6 +68,14 @@ import org.commonjava.web.json.ser.JsonSerializer;
 public class WorkspaceFileResource
 {
 
+    private static final String EXPIRES_FORMAT = "EEE, dd MMM yyyyy HH:mm:ss z";
+
+    private static final TimeZone UTC = TimeZone.getTimeZone( "UTC" );
+
+    private static final String DEFAULT_EXPIRE_FLAG = "DEFAULT";
+
+    private static final int ONE_MINUTE_MS = 60 * 1000;;
+
     private final Logger logger = new Logger( getClass() );
 
     @Inject
@@ -70,15 +84,49 @@ public class WorkspaceFileResource
     @Inject
     private JsonSerializer serializer;
 
+    @Inject
+    private FileDepotConfiguration config;
+
+    @Inject
+    private ExpirationManager expirationManager;
+
     @PUT
     @Path( "{name}" )
     public Response save( @PathParam( "workspaceName" ) final String workspaceName,
                           @PathParam( "name" ) final String filename,
                           @HeaderParam( "Content-Type" ) final MediaType contentType,
                           @HeaderParam( "Content-Length" ) final int contentLength,
+                          @HeaderParam( "Expires" ) @DefaultValue( DEFAULT_EXPIRE_FLAG ) final String expires,
                           @QueryParam( "lastModified" ) final Long lastModified,
                           @Context final HttpServletRequest request, @Context final UriInfo uriInfo )
     {
+        long timeout;
+        if ( DEFAULT_EXPIRE_FLAG.equals( expires ) )
+        {
+            timeout = config.getFileExpirationMins() * ONE_MINUTE_MS;
+        }
+        else
+        {
+            final SimpleDateFormat fmt = new SimpleDateFormat( EXPIRES_FORMAT );
+            fmt.setTimeZone( UTC );
+
+            try
+            {
+                final Date d = fmt.parse( expires );
+                timeout = d.getTime() - System.currentTimeMillis();
+                if ( timeout < 0 )
+                {
+                    timeout = config.getFileExpirationMins() * ONE_MINUTE_MS;
+                }
+            }
+            catch ( final ParseException e )
+            {
+                logger.error( "Invalid Expires HTTP header: '%s'. Parse error was: %s", e, expires, e.getMessage() );
+                return Response.status( Status.BAD_REQUEST )
+                               .build();
+            }
+        }
+
         SecurityUtils.getSubject()
                      .isPermitted( Permission.name( Workspace.NAMESPACE, workspaceName, Permission.CREATE ) );
 
@@ -102,12 +150,18 @@ public class WorkspaceFileResource
         try
         {
             wsDataManager.storeWorkspaceFile( wf );
+            expirationManager.schedule( wsDataManager.createExpiration( wf, timeout ) );
         }
         catch ( final WorkspaceDataException e )
         {
             logger.error( e.getMessage(), e );
             return Response.serverError()
                            .build();
+        }
+        catch ( final ExpirationManagerException e )
+        {
+            logger.error( "Failed to schedule expiration of: %s in workspace: %s. Reason: %s", e, filename,
+                          workspaceName, e.getMessage() );
         }
 
         return Response.created( uriInfo.getAbsolutePathBuilder()
@@ -126,12 +180,18 @@ public class WorkspaceFileResource
         try
         {
             wsDataManager.deleteWorkspaceFile( workspaceName, filename );
+            expirationManager.cancel( new Expiration( wsDataManager.createExpirationKey( workspaceName, filename ) ) );
         }
         catch ( final WorkspaceDataException e )
         {
             logger.error( e.getMessage(), e );
             return Response.serverError()
                            .build();
+        }
+        catch ( final ExpirationManagerException e )
+        {
+            logger.error( "Failed to cancel expiration of: %s in workspace: %s. Reason: %s", e, filename,
+                          workspaceName, e.getMessage() );
         }
 
         return Response.ok()

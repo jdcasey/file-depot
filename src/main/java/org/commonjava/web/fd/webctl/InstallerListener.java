@@ -41,7 +41,7 @@ public class InstallerListener
             userChangeListener.startup();
             fdChangeListener.startup();
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
             throw new RuntimeException( "Failed to start change listener(s): " + e.getMessage(), e );
         }
@@ -50,10 +50,9 @@ public class InstallerListener
         {
             dataManager.install();
         }
-        catch ( WorkspaceDataException e )
+        catch ( final WorkspaceDataException e )
         {
-            throw new RuntimeException( "Failed to install workspace database: " + e.getMessage(),
-                                        e );
+            throw new RuntimeException( "Failed to install workspace database: " + e.getMessage(), e );
         }
         logger.info( "...done." );
     }
@@ -66,10 +65,9 @@ public class InstallerListener
             userChangeListener.shutdown();
             fdChangeListener.shutdown();
         }
-        catch ( CouchDBException e )
+        catch ( final CouchDBException e )
         {
-            throw new RuntimeException( "Failed to shutdown change listener(s): " + e.getMessage(),
-                                        e );
+            throw new RuntimeException( "Failed to shutdown change listener(s): " + e.getMessage(), e );
         }
 
     }

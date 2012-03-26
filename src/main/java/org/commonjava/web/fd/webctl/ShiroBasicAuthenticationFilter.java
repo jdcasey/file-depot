@@ -3,7 +3,6 @@ package org.commonjava.web.fd.webctl;
 import javax.inject.Inject;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.annotation.WebFilter;
 
 import org.apache.shiro.authc.AuthenticationToken;
 import org.apache.shiro.authc.UsernamePasswordToken;
@@ -11,7 +10,7 @@ import org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter;
 import org.commonjava.auth.couch.data.PasswordManager;
 import org.commonjava.util.logging.Logger;
 
-@WebFilter( urlPatterns = "/*", filterName = "shiro-basic-authc" )
+//@WebFilter( urlPatterns = "/*", filterName = "shiro-basic-authc" )
 public class ShiroBasicAuthenticationFilter
     extends BasicHttpAuthenticationFilter
 {

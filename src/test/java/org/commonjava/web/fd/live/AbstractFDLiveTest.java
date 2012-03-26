@@ -43,15 +43,18 @@ public abstract class AbstractFDLiveTest
     protected static WebArchive createDeployment( final Class<?> testClass, final Class<?>... extras )
     {
         final TestWarArchiveBuilder builder =
-            new TestWarArchiveBuilder( testClass ).withExtraClasses( AbstractFDLiveTest.class, TestFDFactory.class )
-                                                  .withExtraClasses( extras )
-                                                  .withLog4jProperties()
-                                                  .withoutBuildClasses( ShiroBasicAuthenticationFilter.class,
-                                                                        ShiroSetupListener.class )
-                                                  // .withJarKnockoutClasses( "couch-user-test-harness.*",
-                                                  // TestAuthenticationFilter.class,
-                                                  // TestAuthenticationControls.class )
-                                                  .withLibrariesIn( new File( "target/dependency" ) );
+            new TestWarArchiveBuilder( new File( "target/test.war" ), testClass ).withExtraClasses( AbstractFDLiveTest.class,
+                                                                                                    TestFDFactory.class )
+                                                                                 .withExtraClasses( extras )
+                                                                                 .withLog4jProperties()
+                                                                                 .withoutBuildClasses( ShiroBasicAuthenticationFilter.class,
+                                                                                                       ShiroSetupListener.class );
+        // .withJarKnockoutClasses(
+        // "couch-user-test-harness.*",
+        // TestAuthenticationFilter.class,
+        // TestAuthenticationControls.class )
+        // .withLibrariesIn( new File(
+        // "target/dependency" ) );
 
         return builder.build();
     }

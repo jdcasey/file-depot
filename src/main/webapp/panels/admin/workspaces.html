@@ -1,0 +1,65 @@
+<html>
+  <head>
+    <!-- DataTables -->
+    <script type="text/javascript" src="js/jquery.dataTables.js"></script>
+    <script type="text/javascript">
+$(document).ready(function()
+{
+  var wsTable = $("#admin-panel-ws .listing-table").dataTable({
+    "bProcessing": true,
+    "sAjaxSource": listUrl,
+    "sAjaxDataProp": "items",
+    "aoColumns": [
+      {
+        "sTitle": "Workspace Name",
+        "bSortable": true,
+        "mDataProp": "name",
+      },
+      {
+        "sTitle": "Options",
+        "fnRender": function(o, val){
+          return $('#admin-ws-templates .admin-ws-list-item-ctls').html();
+        },
+      },
+    ],
+  });
+  
+});
+    </script>
+  </head>
+  <div id="admin-panel-ws" class="content-pane">
+    <div class="listing">
+      <table class="listing-table" border="1">
+        <tr>
+          <th>Workspace Name</th>
+          <th>Options</th>
+        </tr>
+      </table>
+    </div>
+    <div class="content-pane-controls">
+      <button id="create-repo">Create new repository</button>
+    </div>
+  </div>
+  <div id="admin-ws-dialogs">
+    <div id="new-ws">
+      
+    </div>
+    <!-- <div id="edit-ws">
+      
+    </div> -->
+    <div id="del-ws">
+      <input type="hidden" id="delete-ws-row" />
+      <p>
+        Are you sure you want to delete the workspace: <span class="ws-name ui-state-highlight">[name]</span>?
+      </p>
+    </div>
+  </div>
+  <div id="admin-ws-templates">
+    <div class="admin-ws-list-item-ctls">
+      <ul class="list-item-ctls">
+        <li>[Manage Files]</li>
+        <li>[Delete]</li>
+      </ul>
+    </div>
+  </div>
+</html>

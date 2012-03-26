@@ -24,6 +24,10 @@ public interface FileDepotConfiguration
 
     final String DEFAULT_DB_NAME = "file-depot";
 
+    final int DEFAULT_FILE_EXPIRATION_MINS = 43200;
+
+    int getFileExpirationMins();
+
     CouchDBConfiguration getDatabaseConfig();
 
 }

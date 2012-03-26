@@ -41,6 +41,8 @@ public class DefaultFileDepotConfiguration
 
     private CouchDBConfiguration dbConfig;
 
+    private Integer fileExpirationMinutes;
+
     public DefaultFileDepotConfiguration()
     {
     }
@@ -78,6 +80,18 @@ public class DefaultFileDepotConfiguration
         {
             throw new IllegalArgumentException( "Invalid base-url: " + dbBaseUrl, e );
         }
+    }
+
+    @ConfigName( "file.expiration.mins" )
+    public void setFileExpirationMins( final int fileExpirationMins )
+    {
+        this.fileExpirationMinutes = fileExpirationMins;
+    }
+
+    @Override
+    public int getFileExpirationMins()
+    {
+        return fileExpirationMinutes == null ? DEFAULT_FILE_EXPIRATION_MINS : fileExpirationMinutes;
     }
 
 }
