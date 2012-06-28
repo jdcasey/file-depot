@@ -30,7 +30,6 @@ import org.commonjava.couch.test.fixture.LoggingFixture;
 import org.commonjava.web.fd.WSFileDataTestPlan;
 import org.commonjava.web.fd.WorkspaceDataTestPlan;
 import org.commonjava.web.fd.fixture.InjectableTemporaryFolder;
-import org.commonjava.web.fd.fixture.TestFDFactory;
 import org.commonjava.web.fd.fixture.WeldJUnit4Runner;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
@@ -74,9 +73,6 @@ public class WorkspaceDataManagerWeldTest
     @Rule
     public final TestName name = new TestName();
 
-    @Inject
-    private TestFDFactory factory;
-
     @BeforeClass
     public static void setupStatic()
     {
@@ -101,7 +97,7 @@ public class WorkspaceDataManagerWeldTest
     {
         fdCouch.dropDatabase();
         userCouch.dropDatabase();
-        factory.delete();
+        temp.destroy();
 
         clearSubject();
     }
