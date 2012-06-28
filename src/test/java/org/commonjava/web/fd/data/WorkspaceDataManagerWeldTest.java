@@ -11,57 +11,71 @@ import java.io.File;
 import java.util.Date;
 import java.util.List;
 
-import javax.enterprise.util.AnnotationLiteral;
+import javax.inject.Inject;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Level;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
 import org.commonjava.auth.couch.data.PasswordManager;
 import org.commonjava.auth.couch.data.UserDataException;
 import org.commonjava.auth.couch.data.UserDataManager;
-import org.commonjava.auth.couch.inject.UserDataLiteral;
+import org.commonjava.auth.couch.inject.UserData;
 import org.commonjava.auth.shiro.couch.CouchPermissionResolver;
 import org.commonjava.auth.shiro.couch.CouchRealm;
 import org.commonjava.auth.shiro.couch.model.ShiroUserUtils;
 import org.commonjava.couch.db.CouchManager;
-import org.commonjava.couch.model.Attachment;
-import org.commonjava.couch.model.FileAttachment;
 import org.commonjava.couch.rbac.User;
 import org.commonjava.couch.test.fixture.LoggingFixture;
 import org.commonjava.web.fd.WSFileDataTestPlan;
 import org.commonjava.web.fd.WorkspaceDataTestPlan;
+import org.commonjava.web.fd.fixture.InjectableTemporaryFolder;
+import org.commonjava.web.fd.fixture.TestFDFactory;
+import org.commonjava.web.fd.fixture.WeldJUnit4Runner;
 import org.commonjava.web.fd.inject.FileDepotData;
 import org.commonjava.web.fd.model.Workspace;
 import org.commonjava.web.fd.model.WorkspaceFile;
-import org.jboss.weld.environment.se.Weld;
-import org.jboss.weld.environment.se.WeldContainer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
 
+@RunWith( WeldJUnit4Runner.class )
 public class WorkspaceDataManagerWeldTest
     implements WorkspaceDataTestPlan, WSFileDataTestPlan
 {
 
     private CouchRealm realm;
 
+    @Inject
     private WorkspaceDataManager dataManager;
 
+    @Inject
     private PasswordManager passwordManager;
 
+    @Inject
+    @FileDepotData
     private CouchManager fdCouch;
 
+    @Inject
+    @UserData
     private CouchManager userCouch;
 
+    @Inject
     private UserDataManager userMgr;
 
     @Rule
-    public TemporaryFolder temp = new TemporaryFolder();
+    @Inject
+    public InjectableTemporaryFolder temp;
+
+    @Rule
+    public final TestName name = new TestName();
+
+    @Inject
+    private TestFDFactory factory;
 
     @BeforeClass
     public static void setupStatic()
@@ -70,32 +84,9 @@ public class WorkspaceDataManagerWeldTest
     }
 
     @Before
-    @SuppressWarnings( "serial" )
     public void setup()
         throws Exception
     {
-        final WeldContainer weld = new Weld().initialize();
-
-        fdCouch = weld.instance()
-                      .select( CouchManager.class, new AnnotationLiteral<FileDepotData>()
-                      {
-                      } )
-                      .get();
-
-        userCouch = weld.instance()
-                        .select( CouchManager.class, new UserDataLiteral() )
-                        .get();
-
-        dataManager = weld.instance()
-                          .select( WorkspaceDataManager.class )
-                          .get();
-        passwordManager = weld.instance()
-                              .select( PasswordManager.class )
-                              .get();
-
-        userMgr = weld.instance()
-                      .select( UserDataManager.class )
-                      .get();
         realm = new CouchRealm( userMgr, new CouchPermissionResolver( userMgr ) );
         setupSecurityManager( realm );
 
@@ -110,6 +101,7 @@ public class WorkspaceDataManagerWeldTest
     {
         fdCouch.dropDatabase();
         userCouch.dropDatabase();
+        factory.delete();
 
         clearSubject();
     }
@@ -123,7 +115,7 @@ public class WorkspaceDataManagerWeldTest
     public void storeAndRetrieveWorkspace()
         throws WorkspaceDataException
     {
-        final Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( name.getMethodName() );
 
         dataManager.storeWorkspace( ws );
         final Workspace result = dataManager.getWorkspace( ws.getName() );
@@ -140,8 +132,8 @@ public class WorkspaceDataManagerWeldTest
     public void storeTwoAndRetrieveAll()
         throws WorkspaceDataException
     {
-        final Workspace ws = new Workspace( "test" );
-        final Workspace ws2 = new Workspace( "test2" );
+        final Workspace ws = new Workspace( name.getMethodName() );
+        final Workspace ws2 = new Workspace( name.getMethodName() + "2" );
 
         dataManager.storeWorkspace( ws );
         dataManager.storeWorkspace( ws2 );
@@ -164,9 +156,9 @@ public class WorkspaceDataManagerWeldTest
     public void storeThreeAndRetrieveTwoAssociatedWithUser()
         throws WorkspaceDataException, UserDataException
     {
-        final Workspace ws = new Workspace( "test" );
-        final Workspace ws2 = new Workspace( "test2" );
-        final Workspace ws3 = new Workspace( "test3" );
+        final Workspace ws = new Workspace( name.getMethodName() );
+        final Workspace ws2 = new Workspace( name.getMethodName() + "2" );
+        final Workspace ws3 = new Workspace( name.getMethodName() + "3" );
 
         dataManager.storeWorkspace( ws );
         dataManager.storeWorkspace( ws2 );
@@ -201,7 +193,7 @@ public class WorkspaceDataManagerWeldTest
     public void storeAndDeleteWorkspace()
         throws WorkspaceDataException
     {
-        final Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( name.getMethodName() );
 
         dataManager.storeWorkspace( ws );
         Workspace result = dataManager.getWorkspace( ws.getName() );
@@ -221,15 +213,14 @@ public class WorkspaceDataManagerWeldTest
     public void storeFileWithWorkspaceAndRetrieveInfo()
         throws Exception
     {
-        final Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( name.getMethodName() );
 
         dataManager.storeWorkspace( ws );
 
         final File data = temp.newFile( "test.txt" );
         FileUtils.write( data, "This is a test" );
         final WorkspaceFile wsFile =
-            new WorkspaceFile( ws.getName(), "test.txt", new FileAttachment( "test.txt", data, "text/plain",
-                                                                             data.length() ), new Date() );
+            new WorkspaceFile( ws.getName(), "test.txt", "text/plain", data.length(), new Date(), data );
 
         dataManager.storeWorkspaceFile( wsFile );
 
@@ -244,24 +235,23 @@ public class WorkspaceDataManagerWeldTest
     public void storeFileWithWorkspaceAndRetrieveData()
         throws Exception
     {
-        final Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( name.getMethodName() );
 
         dataManager.storeWorkspace( ws );
 
         final File data = temp.newFile( "test.txt" );
         FileUtils.write( data, "This is a test" );
         final WorkspaceFile wsFile =
-            new WorkspaceFile( ws.getName(), "test.txt", new FileAttachment( "test.txt", data, "text/plain",
-                                                                             data.length() ), new Date() );
+            new WorkspaceFile( ws.getName(), "test.txt", "text/plain", data.length(), new Date(), data );
 
         dataManager.storeWorkspaceFile( wsFile );
 
-        final Attachment result = dataManager.getWorkspaceFileData( ws.getName(), wsFile.getFileName() );
+        final WorkspaceFile result = dataManager.getWorkspaceFile( ws.getName(), wsFile.getFileName() );
 
         assertThat( result.getContentLength(), equalTo( wsFile.getContentLength() ) );
         assertThat( result.getContentType(), equalTo( wsFile.getContentType() ) );
 
-        assertThat( IOUtils.toString( result.getData() ), equalTo( "This is a test" ) );
+        assertThat( FileUtils.readFileToString( result.getFile() ), equalTo( "This is a test" ) );
     }
 
     @Override
@@ -269,15 +259,14 @@ public class WorkspaceDataManagerWeldTest
     public void storeFileAndDeleteFileWithWorkspace()
         throws Exception
     {
-        final Workspace ws = new Workspace( "test" );
+        final Workspace ws = new Workspace( name.getMethodName() );
 
         dataManager.storeWorkspace( ws );
 
         final File data = temp.newFile( "test.txt" );
         FileUtils.write( data, "This is a test" );
         final WorkspaceFile wsFile =
-            new WorkspaceFile( ws.getName(), "test.txt", new FileAttachment( "test.txt", data, "text/plain",
-                                                                             data.length() ), new Date() );
+            new WorkspaceFile( ws.getName(), "test.txt", "text/plain", data.length(), new Date(), data );
 
         dataManager.storeWorkspaceFile( wsFile );
         assertThat( dataManager.getWorkspaceFile( ws.getName(), wsFile.getFileName() ), notNullValue() );

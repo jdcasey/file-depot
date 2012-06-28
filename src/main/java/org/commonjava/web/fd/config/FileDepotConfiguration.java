@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.commonjava.web.fd.config;
 
+import java.io.File;
+
 import org.commonjava.couch.conf.CouchDBConfiguration;
 
 public interface FileDepotConfiguration
@@ -29,5 +31,9 @@ public interface FileDepotConfiguration
     int getFileExpirationMins();
 
     CouchDBConfiguration getDatabaseConfig();
+
+    File getStorageDir();
+
+    File getUploadDir();
 
 }

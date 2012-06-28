@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.commonjava.web.fd.rest;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -32,7 +33,7 @@ import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
-import javax.ws.rs.PUT;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -47,8 +48,6 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
-import org.commonjava.couch.model.Attachment;
-import org.commonjava.couch.model.StreamAttachment;
 import org.commonjava.couch.rbac.Permission;
 import org.commonjava.shelflife.expire.ExpirationManager;
 import org.commonjava.shelflife.expire.ExpirationManagerException;
@@ -59,6 +58,7 @@ import org.commonjava.web.fd.data.WorkspaceDataException;
 import org.commonjava.web.fd.data.WorkspaceDataManager;
 import org.commonjava.web.fd.model.Workspace;
 import org.commonjava.web.fd.model.WorkspaceFile;
+import org.commonjava.web.fd.util.WorkspaceUploadManager;
 import org.commonjava.web.json.model.Listing;
 import org.commonjava.web.json.ser.JsonSerializer;
 
@@ -90,12 +90,15 @@ public class WorkspaceFileResource
     @Inject
     private ExpirationManager expirationManager;
 
-    @PUT
+    @Inject
+    private WorkspaceUploadManager uploadManager;
+
+    @POST
     @Path( "{name}" )
     public Response save( @PathParam( "workspaceName" ) final String workspaceName,
                           @PathParam( "name" ) final String filename,
                           @HeaderParam( "Content-Type" ) final MediaType contentType,
-                          @HeaderParam( "Content-Length" ) final int contentLength,
+                          @HeaderParam( "Content-Length" ) final long contentLength,
                           @HeaderParam( "Expires" ) @DefaultValue( DEFAULT_EXPIRE_FLAG ) final String expires,
                           @QueryParam( "lastModified" ) final Long lastModified,
                           @Context final HttpServletRequest request, @Context final UriInfo uriInfo )
@@ -132,20 +135,20 @@ public class WorkspaceFileResource
 
         final long lm = lastModified == null ? System.currentTimeMillis() : lastModified.longValue();
 
-        StreamAttachment attach;
+        File saved;
         try
         {
-            logger.info( "Creating file with type: '%s'", contentType );
-            attach = new StreamAttachment( filename, request.getInputStream(), contentType.toString(), contentLength );
+            saved = uploadManager.saveUpload( request.getInputStream() );
         }
         catch ( final IOException e )
         {
-            logger.error( "Failed to get input stream from request: %s", e, e.getMessage() );
+            logger.error( "Failed to save uploaded file: %s", e, e.getMessage() );
             return Response.serverError()
                            .build();
         }
 
-        final WorkspaceFile wf = new WorkspaceFile( workspaceName, filename, attach, lm );
+        final WorkspaceFile wf =
+            new WorkspaceFile( workspaceName, filename, contentType.toString(), contentLength, lm, saved );
 
         try
         {
@@ -332,7 +335,6 @@ public class WorkspaceFileResource
 
     @GET
     @Path( "{name}" )
-    @Produces( MediaType.APPLICATION_OCTET_STREAM )
     public Response getFile( @PathParam( "workspaceName" ) final String workspaceName,
                              @PathParam( "name" ) final String filename )
     {
@@ -348,11 +350,9 @@ public class WorkspaceFileResource
                                .build();
             }
 
-            final Attachment attachment = wsDataManager.getWorkspaceFileData( workspaceName, filename );
-
-            final ResponseBuilder builder = Response.ok( attachment.getData() );
-            builder.header( "Content-Type", wsFile.getContentType() );
-            builder.header( "Content-Length", wsFile.getContentLength() );
+            final ResponseBuilder builder = Response.ok( wsFile.getFile() )
+                                                    .type( wsFile.getContentType() )
+                                                    .lastModified( wsFile.getLastModifiedDate() );
 
             final long lastMod = wsFile.getLastModified();
             if ( lastMod > 0 )
@@ -368,13 +368,6 @@ public class WorkspaceFileResource
             return builder.build();
         }
         catch ( final WorkspaceDataException e )
-        {
-            logger.error( "Failed to retrieve file-data for: %s in workspace: %s. Reason: %s", e, filename,
-                          workspaceName, e.getMessage() );
-            return Response.serverError()
-                           .build();
-        }
-        catch ( final IOException e )
         {
             logger.error( "Failed to retrieve file-data for: %s in workspace: %s. Reason: %s", e, filename,
                           workspaceName, e.getMessage() );

@@ -22,6 +22,8 @@ import static org.commonjava.couch.rbac.Permission.CREATE;
 import static org.commonjava.couch.rbac.Permission.READ;
 import static org.commonjava.couch.util.IdUtils.namespaceId;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -30,13 +32,13 @@ import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.shiro.subject.Subject;
 import org.commonjava.auth.couch.data.UserDataException;
 import org.commonjava.auth.couch.data.UserDataManager;
 import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.db.CouchDBException;
 import org.commonjava.couch.db.CouchManager;
-import org.commonjava.couch.model.Attachment;
 import org.commonjava.couch.model.CouchDocRef;
 import org.commonjava.couch.rbac.Permission;
 import org.commonjava.couch.rbac.Role;
@@ -207,24 +209,34 @@ public class WorkspaceDataManager
 
         if ( stored )
         {
+            File dir = config.getStorageDir();
+            dir = new File( dir, file.getWorkspaceName() );
+            final File f = new File( dir, file.getFileName() );
+
+            final File bak = new File( f.getPath() + ".bak" );
+            if ( f.exists() )
+            {
+                f.renameTo( bak );
+            }
+
             try
             {
-                couch.attach( file, file.getInboundAttachment() );
-            }
-            catch ( final CouchDBException e )
-            {
-                try
+                FileUtils.moveFile( file.getFile(), f );
+                if ( bak.exists() )
                 {
-                    couch.delete( file );
+                    bak.delete();
                 }
-                catch ( final CouchDBException eRevert )
+            }
+            catch ( final IOException e )
+            {
+                if ( f.exists() )
                 {
-                    logger.error( "Failed to delete workspace file entry: %s. Reason: %s", eRevert, file,
-                                  eRevert.getMessage() );
+                    f.delete();
                 }
 
-                throw new WorkspaceDataException( "Failed to store workspace file: %s. Reason: %s", e, file,
-                                                  e.getMessage() );
+                bak.renameTo( f );
+                throw new WorkspaceDataException( "Cannot store file: %s in workspace: %s. Error: %s", e, f,
+                                                  file.getWorkspaceName(), e.getMessage() );
             }
         }
 
@@ -236,29 +248,26 @@ public class WorkspaceDataManager
     {
         try
         {
-            return couch.getDocument( new CouchDocRef( namespaceId( WorkspaceFile.NAMESPACE, workspace, file ) ),
-                                      WorkspaceFile.class );
+            final WorkspaceFile wsFile =
+                couch.getDocument( new CouchDocRef( namespaceId( WorkspaceFile.NAMESPACE, workspace, file ) ),
+                                   WorkspaceFile.class );
+
+            if ( wsFile != null )
+            {
+                File dir = config.getStorageDir();
+                dir = new File( dir, workspace );
+
+                final File f = new File( dir, file );
+
+                wsFile.setFile( f );
+            }
+
+            return wsFile;
         }
         catch ( final CouchDBException e )
         {
             throw new WorkspaceDataException( "Failed to read file: %s in workspace: %s. Reason: %s", e, file,
                                               workspace, e.getMessage() );
-        }
-    }
-
-    public Attachment getWorkspaceFileData( final String workspace, final String file )
-        throws WorkspaceDataException
-    {
-        try
-        {
-            return couch.getAttachment( new CouchDocRef( namespaceId( WorkspaceFile.NAMESPACE, workspace, file ) ),
-                                        file );
-        }
-        catch ( final CouchDBException e )
-        {
-            throw new WorkspaceDataException(
-                                              "Failed to read data attachment for file: %s in workspace: %s. Reason: %s",
-                                              e, file, workspace, e.getMessage() );
         }
     }
 

@@ -2,11 +2,10 @@ package org.commonjava.web.fd.model;
 
 import static org.commonjava.couch.util.IdUtils.namespaceId;
 
+import java.io.File;
 import java.util.Date;
 
 import org.commonjava.couch.model.AbstractCouchDocWithAttachments;
-import org.commonjava.couch.model.Attachment;
-import org.commonjava.couch.model.AttachmentInfo;
 import org.commonjava.couch.model.DenormalizedCouchDoc;
 
 import com.google.gson.annotations.Expose;
@@ -25,7 +24,7 @@ public class WorkspaceFile
     @SerializedName( "file" )
     private String fileName;
 
-    private transient Attachment inboundAttachment;
+    private transient File file;
 
     @SerializedName( "last_modified" )
     private long lastModified;
@@ -33,28 +32,47 @@ public class WorkspaceFile
     @Expose( deserialize = false )
     private final String doctype = NAMESPACE;
 
+    @SerializedName( "content_type" )
+    private String contentType;
+
+    @SerializedName( "content_length" )
+    private long contentLength;
+
     WorkspaceFile()
     {
     }
 
-    public WorkspaceFile( final String workspace, final String name, final Attachment inboundAttachment,
-                          final Date lastModified )
+    public WorkspaceFile( final String workspace, final String name, final String contentType,
+                          final long contentLength, final Date lastModified, final File file )
     {
         this.workspaceName = workspace;
         this.fileName = name;
-        this.inboundAttachment = inboundAttachment;
+        this.contentLength = contentLength;
+        this.file = file;
+        this.contentType = contentType;
         this.lastModified = lastModified.getTime();
         calculateDenormalizedFields();
     }
 
-    public WorkspaceFile( final String workspace, final String name, final Attachment inboundAttachment,
-                          final long lastModified )
+    public WorkspaceFile( final String workspace, final String name, final String contentType,
+                          final long contentLength, final long lastModified, final File file )
     {
         this.workspaceName = workspace;
         this.fileName = name;
-        this.inboundAttachment = inboundAttachment;
+        this.file = file;
+        this.contentType = contentType;
         this.lastModified = lastModified;
         calculateDenormalizedFields();
+    }
+
+    public void setFile( final File file )
+    {
+        this.file = file;
+    }
+
+    public File getFile()
+    {
+        return file;
     }
 
     public String getDoctype()
@@ -69,24 +87,12 @@ public class WorkspaceFile
 
     public String getContentType()
     {
-        if ( inboundAttachment != null )
-        {
-            return inboundAttachment.getContentType();
-        }
-
-        final AttachmentInfo att = getAttachments().get( 0 );
-        return att.getContentType();
+        return contentType;
     }
 
     public long getContentLength()
     {
-        if ( inboundAttachment != null )
-        {
-            return inboundAttachment.getContentLength();
-        }
-
-        final AttachmentInfo att = getAttachments().get( 0 );
-        return att.getContentLength();
+        return contentLength;
     }
 
     @Override
@@ -105,11 +111,6 @@ public class WorkspaceFile
         return fileName;
     }
 
-    public Attachment getInboundAttachment()
-    {
-        return inboundAttachment;
-    }
-
     void setWorkspaceName( final String workspaceName )
     {
         this.workspaceName = workspaceName;
@@ -120,11 +121,6 @@ public class WorkspaceFile
         this.fileName = fileName;
     }
 
-    void setInboundAttachment( final Attachment inboundAttachment )
-    {
-        this.inboundAttachment = inboundAttachment;
-    }
-
     public long getLastModified()
     {
         return lastModified;
@@ -133,6 +129,16 @@ public class WorkspaceFile
     void setLastModified( final long lastModified )
     {
         this.lastModified = lastModified;
+    }
+
+    final void setContentType( final String contentType )
+    {
+        this.contentType = contentType;
+    }
+
+    final void setContentLength( final long contentLength )
+    {
+        this.contentLength = contentLength;
     }
 
     @Override

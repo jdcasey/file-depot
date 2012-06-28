@@ -1,8 +1,10 @@
 package org.commonjava.web.fd.fixture;
 
+import javax.annotation.PostConstruct;
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Default;
 import javax.enterprise.inject.Produces;
-import javax.inject.Singleton;
+import javax.inject.Inject;
 
 import org.commonjava.auth.couch.conf.DefaultUserManagerConfig;
 import org.commonjava.auth.couch.conf.UserManagerConfiguration;
@@ -12,13 +14,30 @@ import org.commonjava.web.fd.config.DefaultFileDepotConfiguration;
 import org.commonjava.web.fd.config.FileDepotConfiguration;
 import org.commonjava.web.fd.inject.FileDepotData;
 
-@Singleton
+@ApplicationScoped
 public class TestFDFactory
 {
 
-    private static final String DB_URL = "http://localhost:5984/test-fd";
+    public static final String DB_URL = "http://localhost:5984/test-fd";
+
+    @Inject
+    private InjectableTemporaryFolder temp;
 
     private FileDepotConfiguration config;
+
+    @PostConstruct
+    public void postConstruct()
+    {
+        getFDConfig();
+    }
+
+    public void delete()
+    {
+        if ( temp != null )
+        {
+            temp.delete();
+        }
+    }
 
     @Produces
     // @TestData
@@ -27,7 +46,10 @@ public class TestFDFactory
     {
         if ( config == null )
         {
-            config = new DefaultFileDepotConfiguration( DB_URL );
+            final DefaultFileDepotConfiguration c =
+                new DefaultFileDepotConfiguration( DB_URL, temp.newFolder( "storage" ) );
+            c.setUploadDir( temp.newFolder( "upload" ) );
+            config = c;
         }
 
         return config;
@@ -39,7 +61,7 @@ public class TestFDFactory
     @FileDepotData
     public CouchDBConfiguration getFDCouchConfig()
     {
-        return getFDConfig().getDatabaseConfig();
+        return config.getDatabaseConfig();
     }
 
     private UserManagerConfiguration umConfig;

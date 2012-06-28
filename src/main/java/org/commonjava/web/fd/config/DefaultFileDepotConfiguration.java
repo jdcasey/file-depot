@@ -17,6 +17,7 @@
  ******************************************************************************/
 package org.commonjava.web.fd.config;
 
+import java.io.File;
 import java.net.MalformedURLException;
 
 import javax.enterprise.inject.Alternative;
@@ -26,6 +27,7 @@ import org.commonjava.couch.conf.CouchDBConfiguration;
 import org.commonjava.couch.conf.DefaultCouchDBConfiguration;
 import org.commonjava.couch.util.UrlUtils;
 import org.commonjava.web.config.annotation.ConfigName;
+import org.commonjava.web.config.annotation.ConfigNames;
 import org.commonjava.web.config.annotation.SectionName;
 import org.commonjava.web.config.section.ConfigurationSectionListener;
 
@@ -37,18 +39,27 @@ public class DefaultFileDepotConfiguration
     implements FileDepotConfiguration
 {
 
+    private static final File DEFAULT_UPLOAD_DIR = new File( System.getProperty( "java.io.tmpdir" ),
+                                                             "file-depot-uploads" );
+
     private String dbBaseUrl;
 
     private CouchDBConfiguration dbConfig;
 
     private Integer fileExpirationMinutes;
 
+    private File storageDir;
+
+    private File uploadDir;
+
     public DefaultFileDepotConfiguration()
     {
     }
 
-    public DefaultFileDepotConfiguration( final String dbUrl )
+    @ConfigNames( { "db.base.url", "storage.dir" } )
+    public DefaultFileDepotConfiguration( final String dbUrl, final File storageDir )
     {
+        this.storageDir = storageDir;
         setDatabaseUrl( dbUrl );
     }
 
@@ -92,6 +103,30 @@ public class DefaultFileDepotConfiguration
     public int getFileExpirationMins()
     {
         return fileExpirationMinutes == null ? DEFAULT_FILE_EXPIRATION_MINS : fileExpirationMinutes;
+    }
+
+    @Override
+    public final File getStorageDir()
+    {
+        return storageDir;
+    }
+
+    @ConfigName( "storage.dir" )
+    public final void setStorageDir( final File storageDir )
+    {
+        this.storageDir = storageDir;
+    }
+
+    @Override
+    public final File getUploadDir()
+    {
+        return uploadDir == null ? DEFAULT_UPLOAD_DIR : uploadDir;
+    }
+
+    @ConfigName( "upload.dir" )
+    public final void setUploadDir( final File uploadDir )
+    {
+        this.uploadDir = uploadDir;
     }
 
 }
